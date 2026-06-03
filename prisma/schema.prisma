@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Routine {
+  id              String   @id @default(uuid())
+  name            String
+  category        String
+  description     String?
+  targetValue     Float
+  targetUnit      String
+  isActive        Boolean  @default(true)
+  autoImprovement Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  completions     Completion[]
+  streak          Streak?
+}
+
+model Completion {
+  id          String   @id @default(uuid())
+  routineId   String
+  date        DateTime @db.Date
+  status      String   // "COMPLETED", "PARTIAL", "MISSED"
+  value       Float?
+  targetValue Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, date])
+}
+
+model Streak {
+  id                  String   @id @default(uuid())
+  routineId           String   @unique
+  currentStreak       Int      @default(0)
+  longestStreak       Int      @default(0)
+  totalCompletedDays  Int      @default(0)
+  lastCompletedDate   DateTime? @db.Date
+  updatedAt           DateTime @updatedAt
+
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+}
