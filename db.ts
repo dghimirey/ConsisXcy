@@ -3,12 +3,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Ensure the connection string explicitly allows SSL connections
-let dbUrl = process.env.DATABASE_URL || '';
-
-if (dbUrl && !dbUrl.includes('sslmode=require')) {
-  dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'sslmode=require';
-}
-
-// Use neon's over-HTTP routing
-export const sql = neon(dbUrl);
+export const getSql = () => {
+    let dbUrl = process.env.DATABASE_URL || '';
+    if (!dbUrl) {
+        throw new Error("DATABASE_URL environment variable is not configured.");
+    }
+    if (!dbUrl.includes('sslmode=require')) {
+      dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'sslmode=require';
+    }
+    return neon(dbUrl);
+};
