@@ -2,12 +2,11 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { PrismaClient } from '@prisma/client';
 import { createServer as createViteServer } from 'vite';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 export const app = express();
-const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(cors());
@@ -74,7 +73,8 @@ app.get('/api/auth/me', authenticate, (req: express.Request, res: express.Respon
 
 app.get('/api/routines', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const routines = await prisma.routine.findMany({ orderBy: { createdAt: 'desc' } });
+    const sql = getSql();
+    const routines = await sql`SELECT * FROM "Routine" ORDER BY "createdAt" DESC`;
     res.json(routines);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -83,8 +83,20 @@ app.get('/api/routines', authenticate, async (req: express.Request, res: express
 
 app.post('/api/routines', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const routine = await prisma.routine.create({ data: req.body });
-    await prisma.streak.create({ data: { routineId: routine.id } });
+    const sql = getSql();
+    const id = crypto.randomUUID();
+    const { name, category, description, targetValue, targetUnit, isActive = true, autoImprovement = false } = req.body;
+    const routines = await sql`
+      INSERT INTO "Routine" (id, name, category, description, "targetValue", "targetUnit", "isActive", "autoImprovement", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${category}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, NOW(), NOW())
+      RETURNING *
+    `;
+    const routine = routines[0];
+    const streakId = crypto.randomUUID();
+    await sql`
+      INSERT INTO "Streak" (id, "routineId", "currentStreak", "longestStreak", "totalCompletedDays", "updatedAt")
+      VALUES (${streakId}, ${id}, 0, 0, 0, NOW())
+    `;
     res.json(routine);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -93,8 +105,16 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
 
 app.put('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const routine = await prisma.routine.update({ where: { id: req.params.id }, data: req.body });
-    res.json(routine);
+    const sql = getSql();
+    const { name, category, description, targetValue, targetUnit, isActive, autoImprovement } = req.body;
+    const routines = await sql`
+      UPDATE "Routine"
+      SET name = ${name}, category = ${category}, description = ${description || null},
+          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "updatedAt" = NOW()
+      WHERE id = ${req.params.id}
+      RETURNING *
+    `;
+    res.json(routines[0]);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -102,7 +122,8 @@ app.put('/api/routines/:id', authenticate, async (req: express.Request, res: exp
 
 app.delete('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    await prisma.routine.delete({ where: { id: req.params.id } });
+    const sql = getSql();
+    await sql`DELETE FROM "Routine" WHERE id = ${req.params.id}`;
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -111,25 +132,31 @@ app.delete('/api/routines/:id', authenticate, async (req: express.Request, res: 
 
 app.post('/api/completions', authenticate, async (req: express.Request, res: express.Response) => {
   try {
+    const sql = getSql();
     const { routineId, date, status, value, targetValue } = req.body;
     const parsedDate = new Date(date).toISOString(); // Handle proper Postgres dates
+    const completionId = crypto.randomUUID();
     
-    const completion = await prisma.completion.upsert({
-      where: { routineId_date: { routineId, date: parsedDate } },
-      update: { status, value, targetValue },
-      create: { routineId, date: parsedDate, status, value, targetValue }
-    });
+    // upsert completion using ON CONFLICT DO UPDATE
+    const completions = await sql`
+      INSERT INTO "Completion" (id, "routineId", date, status, value, "targetValue", "createdAt", "updatedAt")
+      VALUES (${completionId}, ${routineId}, ${parsedDate}::timestamp, ${status}, ${value || null}, ${targetValue}, NOW(), NOW())
+      ON CONFLICT ("routineId", date)
+      DO UPDATE SET status = EXCLUDED.status, value = EXCLUDED.value, "targetValue" = EXCLUDED."targetValue", "updatedAt" = NOW()
+      RETURNING *
+    `;
+    const completion = completions[0];
 
     if (status === 'COMPLETED') {
-        const routine = await prisma.routine.findUnique({ where: { id: routineId } });
+        const routineResult = await sql`SELECT * FROM "Routine" WHERE id = ${routineId}`;
+        const routine = routineResult[0];
+        
         if (routine?.autoImprovement) {
-            await prisma.routine.update({
-                where: { id: routineId },
-                data: { targetValue: Math.round(routine.targetValue * 1.01 * 100) / 100 }
-            });
+            await sql`UPDATE "Routine" SET "targetValue" = ROUND(("targetValue" * 1.01)::numeric, 2) WHERE id = ${routineId}`;
         }
         
-        const streak = await prisma.streak.findUnique({ where: { routineId } });
+        const streakResult = await sql`SELECT * FROM "Streak" WHERE "routineId" = ${routineId}`;
+        const streak = streakResult[0];
         if (streak) {
             const today = new Date(parsedDate);
             const isNextDay = streak.lastCompletedDate ? Math.floor((today.getTime() - new Date(streak.lastCompletedDate).getTime()) / (1000 * 3600 * 24)) === 1 : true;
@@ -137,21 +164,18 @@ app.post('/api/completions', authenticate, async (req: express.Request, res: exp
             const newCurrent = isNextDay || !streak.lastCompletedDate ? streak.currentStreak + 1 : 1;
             const updatedTotal = streak.totalCompletedDays + 1;
 
-            await prisma.streak.update({
-                where: { routineId },
-                data: {
-                    currentStreak: newCurrent,
-                    longestStreak: Math.max(streak.longestStreak, newCurrent),
-                    totalCompletedDays: updatedTotal,
-                    lastCompletedDate: parsedDate,
-                }
-            });
+            await sql`
+              UPDATE "Streak"
+              SET "currentStreak" = ${newCurrent},
+                  "longestStreak" = GREATEST("longestStreak", ${newCurrent}),
+                  "totalCompletedDays" = ${updatedTotal},
+                  "lastCompletedDate" = ${parsedDate}::timestamp,
+                  "updatedAt" = NOW()
+              WHERE "routineId" = ${routineId}
+            `;
         }
     } else if (status === 'MISSED') {
-        await prisma.streak.update({
-            where: { routineId },
-            data: { currentStreak: 0 }
-        });
+        await sql`UPDATE "Streak" SET "currentStreak" = 0, "updatedAt" = NOW() WHERE "routineId" = ${routineId}`;
     }
 
     res.json(completion);
@@ -162,7 +186,8 @@ app.post('/api/completions', authenticate, async (req: express.Request, res: exp
 
 app.get('/api/completions', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const completions = await prisma.completion.findMany();
+    const sql = getSql();
+    const completions = await sql`SELECT * FROM "Completion"`;
     res.json(completions);
   } catch(e: any) {
     res.status(500).json({ error: e.message });
@@ -171,7 +196,8 @@ app.get('/api/completions', authenticate, async (req: express.Request, res: expr
 
 app.get('/api/streaks', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const streaks = await prisma.streak.findMany();
+    const sql = getSql();
+    const streaks = await sql`SELECT * FROM "Streak"`;
     res.json(streaks);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -180,9 +206,10 @@ app.get('/api/streaks', authenticate, async (req: express.Request, res: express.
 
 app.get('/api/analytics', authenticate, async (req: express.Request, res: express.Response) => {
   try {
-    const completions = await prisma.completion.findMany();
-    const streaks = await prisma.streak.findMany();
-    const routines = await prisma.routine.findMany();
+    const sql = getSql();
+    const completions = await sql`SELECT * FROM "Completion"`;
+    const streaks = await sql`SELECT * FROM "Streak"`;
+    const routines = await sql`SELECT * FROM "Routine"`;
     res.json({ completions, streaks, routines });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
