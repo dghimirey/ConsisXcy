@@ -2,9 +2,9 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { createServer as createViteServer } from 'vite';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { getSql } from './db';
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -12,8 +12,6 @@ const PORT = Number(process.env.PORT) || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-
-import { getSql } from './db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fitbeat.com';
@@ -218,6 +216,8 @@ app.get('/api/analytics', authenticate, async (req: express.Request, res: expres
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
+    const viteModule = 'vite';
+    const { createServer: createViteServer } = await import(viteModule);
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
