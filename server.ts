@@ -4,7 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { getSql } from './db';
+import { getSql } from './db.js';
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3000;
