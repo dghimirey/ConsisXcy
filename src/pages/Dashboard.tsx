@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
-import { Check, X, Flame, Minus, CircleDashed } from 'lucide-react';
+import { Check, Flame, CircleDashed } from 'lucide-react';
 import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks } from '../services/api';
 import { Routine, Completion, Streak } from '../types';
 
@@ -120,27 +120,15 @@ export default function Dashboard() {
                             </div>
                         )}
                         {currentStreak === 0 && <div className="hidden md:block w-4"></div>}
-                        <div className="flex bg-app-surface border border-app-border rounded-xl p-1 gap-1 ml-auto md:ml-0">
-                            {/* MISSED */}
+                        <div className="flex items-center ml-auto md:ml-0">
                             <button 
-                                onClick={() => mutation.mutate({ routineId: routine.id, date: todayStr, status: 'MISSED', targetValue: routine.targetValue })}
-                                className={`p-2 rounded-lg transition-colors ${status === 'MISSED' ? 'bg-rose-500/20 text-rose-400' : 'text-app-text-s hover:text-rose-400 hover:bg-app-glass'}`}
+                                onClick={() => {
+                                    const newStatus = status === 'COMPLETED' ? 'MISSED' : 'COMPLETED';
+                                    mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: routine.targetValue, value: newStatus === 'COMPLETED' ? routine.targetValue : 0 });
+                                }}
+                                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${status === 'COMPLETED' ? 'bg-app-accent border-app-accent text-app-bg' : 'border-app-border text-transparent hover:border-app-accent hover:bg-app-glass'}`}
                             >
-                                <X className="w-4 h-4" />
-                            </button>
-                            {/* PARTIAL */}
-                            <button 
-                                onClick={() => mutation.mutate({ routineId: routine.id, date: todayStr, status: 'PARTIAL', targetValue: routine.targetValue, value: routine.targetValue / 2 })}
-                                className={`p-2 rounded-lg transition-colors ${status === 'PARTIAL' ? 'bg-orange-500/20 text-orange-400' : 'text-app-text-s hover:text-orange-400 hover:bg-app-glass'}`}
-                            >
-                                <Minus className="w-4 h-4" />
-                            </button>
-                            {/* COMPLETED */}
-                            <button 
-                                onClick={() => mutation.mutate({ routineId: routine.id, date: todayStr, status: 'COMPLETED', targetValue: routine.targetValue, value: routine.targetValue })}
-                                className={`p-2 rounded-lg transition-colors border ${status === 'COMPLETED' ? 'bg-app-accent text-app-bg border-app-accent' : 'text-app-text-p hover:border-app-accent border-transparent'}`}
-                            >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-5 h-5" strokeWidth={3} />
                             </button>
                         </div>
                     </div>
