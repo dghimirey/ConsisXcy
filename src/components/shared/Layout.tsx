@@ -1,11 +1,12 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, LineChart, LogOut, Activity } from 'lucide-react';
+import { LayoutDashboard, ListTodo, LineChart, LogOut, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { checkAuth } from '../../services/api';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Layout() {
   const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { data, error, isError } = useQuery({ queryKey: ['auth'], queryFn: checkAuth, retry: false });
 
   useEffect(() => {
@@ -22,29 +23,35 @@ export default function Layout() {
   return (
     <div className="flex h-[100dvh] bg-app-bg text-app-text-p flex-col md:flex-row overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 border-r border-app-border bg-app-surface backdrop-blur-md flex-col items-center py-8">
-        <div className="flex items-center gap-2 mb-12">
-            <Activity className="w-8 h-8 text-app-accent" />
-            <h1 className="font-display text-2xl font-bold tracking-tight text-white">FitBeat</h1>
+      <aside className={`relative hidden md:flex ${isCollapsed ? 'w-[88px]' : 'w-64'} transition-all duration-300 ease-in-out border-r border-app-border bg-app-surface backdrop-blur-md flex-col items-center py-8 z-10`}>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-9 flex items-center justify-center w-6 h-6 bg-app-surface border border-app-border rounded-full text-app-text-s hover:text-white hover:bg-app-glass transition-colors z-20 cursor-pointer"
+        >
+          {isCollapsed ? <ChevronRight className="w-4 h-4 ml-0.5" /> : <ChevronLeft className="w-4 h-4 mr-0.5" />}
+        </button>
+        <div className={`flex items-center gap-2 mb-12 w-full h-8 overflow-hidden whitespace-nowrap pl-6`}>
+            <Activity className="w-8 h-8 text-app-accent shrink-0" />
+            <h1 className={`font-display text-2xl font-bold tracking-tight text-white transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>ConsisXcy</h1>
         </div>
-        <nav className="flex flex-col gap-2 w-full px-4">
-          <NavLink to="/" end className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`}>
-            <LayoutDashboard className="w-5 h-5" />
-            Dashboard
+        <nav className={`flex flex-col gap-2 w-full px-4`}>
+          <NavLink to="/" end className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`} title="Dashboard">
+            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Dashboard</span>}
           </NavLink>
-          <NavLink to="/routines" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`}>
-            <ListTodo className="w-5 h-5" />
-            Routines
+          <NavLink to="/routines" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`} title="Routines">
+            <ListTodo className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Routines</span>}
           </NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`}>
-            <LineChart className="w-5 h-5" />
-            Analytics
+          <NavLink to="/analytics" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`} title="Analytics">
+            <LineChart className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Analytics</span>}
           </NavLink>
         </nav>
-        <div className="mt-auto w-full px-4">
-            <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-app-text-s hover:text-rose-400 hover:bg-rose-500/10 w-full transition-colors">
-                <LogOut className="w-5 h-5" />
-                Logout
+        <div className={`mt-auto w-full px-4`}>
+            <button onClick={handleLogout} className={`flex items-center ${isCollapsed ? 'justify-center px-0 cursor-pointer' : 'gap-3 px-4 cursor-pointer'} w-full py-3 rounded-xl text-app-text-s hover:text-rose-400 hover:bg-rose-500/10 transition-colors`} title="Logout">
+                <LogOut className="w-5 h-5 shrink-0" />
+                {!isCollapsed && <span>Logout</span>}
             </button>
         </div>
       </aside>

@@ -38,7 +38,7 @@ export default function Login() {
         <div className="flex justify-center mb-8">
             <div className="flex items-center gap-3">
                 <Activity className="w-10 h-10 text-app-accent" />
-                <h1 className="font-display text-4xl font-bold text-white tracking-tight">FitBeat</h1>
+                <h1 className="font-display text-4xl font-bold text-white tracking-tight">ConsisXcy</h1>
             </div>
         </div>
         <div className="bg-app-surface p-8 rounded-[16px] border border-app-border backdrop-blur-xl">

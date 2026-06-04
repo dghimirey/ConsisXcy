@@ -113,7 +113,7 @@ export default function RoutinesPage() {
 
       <div className="space-y-4">
         {routines.map(routine => (
-          <div key={routine.id} className="bg-app-surface border border-app-border p-4 rounded-[12px] flex items-center justify-between group">
+          <div key={routine.id} className="bg-app-surface border border-app-border p-4 rounded-[12px] flex flex-col sm:flex-row sm:items-center items-start justify-between group gap-4">
             <div className={`flex flex-col gap-1 ${!routine.isActive && 'opacity-50'}`}>
                 <h3 className="text-base font-semibold text-white flex items-center gap-2">
                     {routine.name}

@@ -19,7 +19,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<div className="h-screen w-screen bg-app-bg flex items-center justify-center text-app-text-s font-mono text-[11px] uppercase tracking-wide">LOADING FITBEAT_</div>}>
+        <Suspense fallback={<div className="h-screen w-screen bg-app-bg flex items-center justify-center text-app-text-s font-mono text-[11px] uppercase tracking-wide">LOADING CONSISXCY_</div>}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Layout />}>
