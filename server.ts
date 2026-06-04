@@ -14,6 +14,8 @@ app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
+import { sql } from './db';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fitbeat.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password123';
@@ -34,7 +36,7 @@ const authenticate = (req: express.Request, res: express.Response, next: express
   }
 };
 
-app.post('/api/auth/login', (req: express.Request, res: express.Response) => {
+app.post('/api/auth/login', async (req: express.Request, res: express.Response) => {
   try {
     const { email, password } = req.body;
     
@@ -42,6 +44,10 @@ app.post('/api/auth/login', (req: express.Request, res: express.Response) => {
       res.status(400).json({ error: 'Email and password are required' });
       return;
     }
+
+    // Ping the Neon database via HTTP to verify the connection is alive
+    // This query is wrapped in try/catch as requested to bubble up DB errors directly
+    await sql`SELECT 1 as test_connection`;
     
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
@@ -52,7 +58,7 @@ app.post('/api/auth/login', (req: express.Request, res: express.Response) => {
     }
   } catch (error: any) {
     console.error('Login route error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error connecting to neon database' });
   }
 });
 
