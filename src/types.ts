@@ -1,5 +1,6 @@
 export interface Routine {
   id: string;
+  categoryId: string | null;
   name: string;
   category: string;
   description: string | null;
@@ -7,6 +8,7 @@ export interface Routine {
   targetUnit: string;
   isActive: boolean;
   autoImprovement: boolean;
+  priority: 'Low' | 'Medium' | 'High';
   createdAt: string;
   updatedAt: string;
 }
@@ -33,5 +35,22 @@ export interface Streak {
 }
 
 export interface User {
+  id: string;
+  name: string;
   email: string;
+  avatarUrl?: string;
+}
+
+export interface Section {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface Category {
+  id: string;
+  sectionId: string;
+  name: string;
+  schedule: number[];
+  createdAt: string;
 }

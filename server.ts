@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { getSql } from './db.js';
 
 export const app = express();
@@ -16,6 +17,34 @@ app.use(cookieParser());
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@fitbeat.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password123';
+
+async function initDb() {
+  try {
+    const sql = getSql();
+    await sql`
+      CREATE TABLE IF NOT EXISTS "AppUser" (
+        id UUID PRIMARY KEY,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT,
+        "avatarUrl" TEXT,
+        "createdAt" TIMESTAMP DEFAULT NOW(),
+        "updatedAt" TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    const users = await sql`SELECT * FROM "AppUser" WHERE email = ${ADMIN_EMAIL}`;
+    if (users.length === 0) {
+      const id = crypto.randomUUID();
+      const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      await sql`
+        INSERT INTO "AppUser" (id, name, email, password)
+        VALUES (${id}, 'Admin User', ${ADMIN_EMAIL}, ${hash})
+      `;
+    }
+  } catch (e) {
+    console.error("Init DB Error", e);
+  }
+}
 
 const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies?.token;
@@ -42,15 +71,32 @@ app.post('/api/auth/login', async (req: express.Request, res: express.Response) 
       return;
     }
 
-    // Ping the Neon database via HTTP to verify the connection is alive
-    // This query is wrapped in try/catch as requested to bubble up DB errors directly
     const sql = getSql();
+    // Test connection
     await sql`SELECT 1 as test_connection`;
     
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
+    const users = await sql`SELECT * FROM "AppUser" WHERE email = ${email}`;
+    const user = users[0];
+
+    let validPassword = false;
+    if (user) {
+      // Legacy check or bcrypt check
+      if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+        validPassword = await bcrypt.compare(password, user.password);
+      } else {
+        // Fallback for raw passwords just in case, plus rehash
+        validPassword = password === user.password;
+        if (validPassword) {
+          const hash = await bcrypt.hash(password, 10);
+          await sql`UPDATE "AppUser" SET password = ${hash} WHERE id = ${user.id}`;
+        }
+      }
+    }
+    
+    if (user && validPassword) {
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none', maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ success: true });
+      res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl } });
     } else {
       res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -65,8 +111,72 @@ app.post('/api/auth/logout', (req: express.Request, res: express.Response) => {
   res.json({ success: true });
 });
 
-app.get('/api/auth/me', authenticate, (req: express.Request, res: express.Response) => {
-  res.json({ user: (req as any).user });
+app.get('/api/auth/me', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const email = (req as any).user.email;
+    const users = await sql`SELECT id, name, email, "avatarUrl" FROM "AppUser" WHERE email = ${email}`;
+    if (users.length > 0) {
+      res.json({ user: users[0] });
+    } else {
+      res.status(401).json({ error: 'User not found' });
+    }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/sections', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const sections = await sql`SELECT * FROM "Section" ORDER BY name ASC`;
+    res.json(sections);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sections', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { name } = req.body;
+    if (!name) {
+      res.status(400).json({ error: "Name required" });
+      return;
+    }
+    const id = crypto.randomUUID();
+    const sections = await sql`
+      INSERT INTO "Section" (id, name, "createdAt")
+      VALUES (${id}, ${name}, NOW())
+      RETURNING *
+    `;
+    res.json(sections[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/sections/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { name } = req.body;
+    const sections = await sql`
+      UPDATE "Section" SET name = ${name} WHERE id = ${req.params.id} RETURNING *
+    `;
+    res.json(sections[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/sections/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    await sql`DELETE FROM "Section" WHERE id = ${req.params.id}`;
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/routines', authenticate, async (req: express.Request, res: express.Response) => {
@@ -83,10 +193,10 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
   try {
     const sql = getSql();
     const id = crypto.randomUUID();
-    const { name, category, description, targetValue, targetUnit, isActive = true, autoImprovement = false } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, isActive = true, autoImprovement = false, priority = 'Medium' } = req.body;
     const routines = await sql`
-      INSERT INTO "Routine" (id, name, category, description, "targetValue", "targetUnit", "isActive", "autoImprovement", "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${category}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, NOW(), NOW())
+      INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "isActive", "autoImprovement", "priority", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${category}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, ${priority}, NOW(), NOW())
       RETURNING *
     `;
     const routine = routines[0];
@@ -104,11 +214,11 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
 app.put('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const { name, category, description, targetValue, targetUnit, isActive, autoImprovement } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, isActive, autoImprovement, priority = 'Medium' } = req.body;
     const routines = await sql`
       UPDATE "Routine"
-      SET name = ${name}, category = ${category}, description = ${description || null},
-          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "updatedAt" = NOW()
+      SET name = ${name}, category = ${category}, "categoryId" = ${categoryId || null}, description = ${description || null},
+          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "priority" = ${priority}, "updatedAt" = NOW()
       WHERE id = ${req.params.id}
       RETURNING *
     `;
@@ -202,19 +312,71 @@ app.get('/api/streaks', authenticate, async (req: express.Request, res: express.
   }
 });
 
-app.get('/api/analytics', authenticate, async (req: express.Request, res: express.Response) => {
+app.get('/api/categories', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const completions = await sql`SELECT * FROM "Completion"`;
-    const streaks = await sql`SELECT * FROM "Streak"`;
-    const routines = await sql`SELECT * FROM "Routine"`;
-    res.json({ completions, streaks, routines });
+    const categories = await sql`SELECT * FROM "Category" ORDER BY name ASC`;
+    res.json(categories);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/categories', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { name, sectionId, schedule } = req.body;
+    if (!name || !sectionId) {
+      res.status(400).json({ error: "Name and sectionId required" });
+      return;
+    }
+    const id = crypto.randomUUID();
+    const scheduleJson = schedule ? JSON.stringify(schedule) : '[0,1,2,3,4,5,6]';
+    const categories = await sql`
+      INSERT INTO "Category" (id, "sectionId", name, schedule, "createdAt")
+      VALUES (${id}, ${sectionId}, ${name}, ${scheduleJson}::jsonb, NOW())
+      RETURNING *
+    `;
+    res.json(categories[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/categories/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { name, sectionId, schedule } = req.body;
+    const oldCat = await sql`SELECT name FROM "Category" WHERE id = ${req.params.id}`;
+    if (oldCat.length > 0 && oldCat[0].name) {
+      await sql`UPDATE "Routine" SET category = ${name} WHERE category = ${oldCat[0].name}`;
+    }
+    const scheduleJson = schedule ? JSON.stringify(schedule) : '[0,1,2,3,4,5,6]';
+    const categories = await sql`
+      UPDATE "Category" SET name = ${name}, "sectionId" = ${sectionId}, schedule = ${scheduleJson}::jsonb WHERE id = ${req.params.id} RETURNING *
+    `;
+    res.json(categories[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/categories/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const oldCat = await sql`SELECT name FROM "Category" WHERE id = ${req.params.id}`;
+    if (oldCat.length > 0 && oldCat[0].name) {
+      await sql`UPDATE "Routine" SET category = 'Uncategorized' WHERE category = ${oldCat[0].name}`;
+    }
+    await sql`DELETE FROM "Category" WHERE id = ${req.params.id}`;
+    res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
 async function startServer() {
+  await initDb();
   if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
     const viteModule = 'vite';
     const { createServer: createViteServer } = await import(viteModule);

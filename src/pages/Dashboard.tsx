@@ -1,26 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { Check, Flame, CircleDashed, Filter } from 'lucide-react';
+import { Check, Flame, CircleDashed, Filter, ArrowUpDown, Trophy } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks } from '../services/api';
-import { Routine, Completion, Streak } from '../types';
+import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections } from '../services/api';
+import { Routine, Completion, Streak, Category, Section } from '../types';
 import { HabitHeatmap } from '../components/HabitHeatmap';
+import { formatTarget } from '../lib/utils';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [sortByPriority, setSortByPriority] = useState<boolean>(false);
 
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
   const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
   const { data: streaks = [] } = useQuery({ queryKey: ['streaks'], queryFn: fetchStreaks });
+  const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+  const { data: sectionsData = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
 
-  const categories = useMemo(() => ['All', ...new Set(routines.map((r: Routine) => r.category).filter(Boolean))], [routines]);
+  // Dashboard behavior: Display only categories scheduled for today
+  const currentDayIndex = new Date().getDay(); // 0 is Sunday
   
-  const activeRoutines = routines.filter(r => r.isActive);
-  const filteredRoutines = activeRoutines.filter(r => selectedCategory === 'All' || r.category === selectedCategory);
+  const todayCategories = categoriesData.filter((c: Category) => {
+    return c.schedule && Array.isArray(c.schedule) && c.schedule.includes(currentDayIndex);
+  });
+  const todayCategoryIds = todayCategories.map((c: Category) => c.id);
+
+  const activeRoutines = routines.filter((r: Routine) => r.isActive && r.categoryId && todayCategoryIds.includes(r.categoryId));
+
+  let filteredRoutines = [...activeRoutines];
+
+  if (sortByPriority) {
+    const priorityWeight: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
+    filteredRoutines = [...filteredRoutines].sort((a, b) => {
+      const pA = priorityWeight[a.priority || 'Medium'] || 2;
+      const pB = priorityWeight[b.priority || 'Medium'] || 2;
+      return pB - pA;
+    });
+  }
 
 
   // Mark Completion Mutation with Optimistic Updates
@@ -75,12 +94,81 @@ export default function Dashboard() {
      return streaks.find(s => s.routineId === routineId)?.currentStreak || 0;
   };
 
-  const dailyScore = filteredRoutines.length > 0 
-    ? filteredRoutines.reduce((acc, r) => acc + (getDayStatus(r.id) === 'COMPLETED' ? 1 : getDayStatus(r.id) === 'PARTIAL' ? 0.5 : 0), 0) / filteredRoutines.length
-    : 0;
+  const userGlobalStreaks = useMemo(() => {
+    const completedDates = [...new Set(
+      completions
+        .filter(c => c.status === 'COMPLETED')
+        .map(c => new Date(c.date).toISOString().split('T')[0])
+    )].sort();
+
+    if (completedDates.length === 0) return { current: 0, longest: 0 };
+
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 1;
+
+    for (let i = 1; i < completedDates.length; i++) {
+        const prevDate = new Date(completedDates[i - 1]);
+        const currDate = new Date(completedDates[i]);
+        const diffTime = currDate.getTime() - prevDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+        if (diffDays === 1) {
+            tempStreak++;
+        } else if (diffDays > 1) {
+            if (tempStreak > longestStreak) longestStreak = tempStreak;
+            tempStreak = 1;
+        }
+    }
+    if (tempStreak > longestStreak) longestStreak = tempStreak;
+
+    const todayString = format(new Date(), 'yyyy-MM-dd');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = format(yesterday, 'yyyy-MM-dd');
+    
+    const lastCompletedDate = completedDates[completedDates.length - 1];
+
+    if (lastCompletedDate === todayString || lastCompletedDate === yesterdayString) {
+        currentStreak = tempStreak;
+    } else {
+        currentStreak = 0;
+    }
+
+    return { current: currentStreak, longest: longestStreak };
+  }, [completions]);
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      {/* Global Streaks Section */}
+      <div className="grid grid-cols-2 gap-4 md:gap-6 mb-8 md:mb-10">
+        <div className="bg-app-glass border border-app-border rounded-[20px] p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+            <Flame className="w-5 h-5 text-app-accent" />
+            <h3 className="text-xs uppercase tracking-wider text-app-text-s font-mono font-medium">Current Streak</h3>
+          </div>
+          <p className="text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-2">
+            {userGlobalStreaks.current} <span className="text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
+          </p>
+          <div className="absolute -bottom-10 -right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
+             <Flame className="w-48 h-48" />
+          </div>
+        </div>
+
+        <div className="bg-app-glass border border-app-border rounded-[20px] p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
+          <div className="flex items-center gap-2 mb-2 relative z-10">
+             <Trophy className="w-5 h-5 text-amber-400" />
+            <h3 className="text-xs uppercase tracking-wider text-app-text-s font-mono font-medium">Longest Streak</h3>
+          </div>
+          <p className="text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-2">
+            {userGlobalStreaks.longest} <span className="text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
+          </p>
+          <div className="absolute -bottom-10 -right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
+             <Trophy className="w-48 h-48" />
+          </div>
+        </div>
+      </div>
+
       <header className="mb-6 md:mb-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -89,63 +177,68 @@ export default function Dashboard() {
             </h1>
             <p className="text-app-text-s font-mono text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
           </div>
-          {categories.length > 1 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-              <Filter className="w-4 h-4 text-app-text-s shrink-0" />
-              {categories.map((cat: any) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    selectedCategory === cat 
-                      ? 'bg-app-accent text-zinc-900 border border-app-accent' 
-                      : 'bg-app-glass border border-app-border text-app-text hover:border-app-text-s'
-                  }`}
-                >
-                  {cat || 'Uncategorized'}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar flex-1 md:justify-end">
+            <button
+              onClick={() => setSortByPriority(!sortByPriority)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors mr-2 ${
+                sortByPriority 
+                  ? 'bg-app-accent text-zinc-900 border border-app-accent' 
+                  : 'bg-app-glass border border-app-border text-app-text hover:border-app-text-s'
+              }`}
+              title="Sort by Priority"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              Sort Priority
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Stats/Dashboard Header */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-12">
-        <div className="bg-app-glass border border-app-border rounded-2xl p-4 md:p-6 relative col-span-1">
-           <p className="text-app-text-s text-[11px] uppercase tracking-wider mb-2 font-mono">Today's Progress</p>
-           <h3 className="text-4xl font-display font-bold text-white leading-none">{Math.round(dailyScore * 100)}<span className="text-sm text-app-text-s ml-1">%</span></h3>
-           <div className="w-full bg-app-border h-1 rounded-sm mt-4 overflow-hidden">
-             <motion.div initial={{ width: 0 }} animate={{ width: `${dailyScore * 100}%` }} className="h-full bg-app-accent rounded-sm" />
+      <div className="space-y-6 mb-8 md:mb-12">
+        {filteredRoutines.length === 0 ? (
+           <div className="text-center py-20 bg-app-surface border border-app-border rounded-2xl">
+              <p className="text-app-text-s">No routines scheduled for today based on your categories.</p>
            </div>
-        </div>
-
-        <div className="col-span-1 md:col-span-2 flex justify-center">
-            <HabitHeatmap category={selectedCategory} />
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <AnimatePresence mode="popLayout">
-          {filteredRoutines.map((routine, idx) => {
-              const status = getDayStatus(routine.id);
-              const currentStreak = getStreak(routine.id);
-              return (
-                  <motion.div 
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                      key={routine.id} 
-                      className={`group bg-app-surface border ${status === 'COMPLETED' ? 'border-app-accent' : 'border-app-border'} hover:border-app-text-s p-4 rounded-[12px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors`}
-                  >
+        ) : (
+          todayCategories.map((category: Category) => {
+            const categoryRoutines = filteredRoutines.filter((r: Routine) => r.categoryId === category.id);
+            if (categoryRoutines.length === 0) return null;
+            return (
+              <div key={category.id} className="space-y-3">
+                <h2 className="text-lg font-semibold text-app-text-p flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-app-accent"></div>
+                  {category.name}
+                </h2>
+                <div className="space-y-3">
+                  <AnimatePresence mode="popLayout">
+                    {categoryRoutines.map((routine: Routine, idx: number) => {
+                      const status = getDayStatus(routine.id);
+                      const currentStreak = getStreak(routine.id);
+                      return (
+                          <motion.div 
+                              layout
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                              key={routine.id} 
+                              className={`group bg-app-surface border ${status === 'COMPLETED' ? 'border-app-accent' : 'border-app-border'} hover:border-app-text-s p-4 rounded-[12px] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors`}
+                          >
                     <div className="flex items-center gap-4">
                         <div className="flex flex-col gap-1">
                             <h3 className="text-base font-semibold text-white flex items-center">
                                 {routine.name}
-                                {routine.autoImprovement && <span className="text-[10px] bg-app-accent/10 text-app-accent px-2 py-0.5 rounded-full ml-2">+{routine.targetValue * 0.01}%</span>}
+                                {routine.priority && (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full ml-3 tracking-wider uppercase ${
+                                        routine.priority === 'High' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
+                                        routine.priority === 'Medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
+                                        'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                    }`}>
+                                        {routine.priority}
+                                    </span>
+                                )}
+                                {routine.autoImprovement && <span className="text-[10px] bg-app-accent/10 text-app-accent px-2 py-0.5 rounded-full ml-2">Growing target</span>}
                             </h3>
-                            <p className="text-[12px] text-app-text-s font-mono">Target: {routine.targetValue} {routine.targetUnit}</p>
+                            <p className="text-[12px] text-app-text-s font-mono">Target: {formatTarget(routine.targetValue)} {routine.targetUnit}</p>
                         </div>
                     </div>
                     
@@ -186,18 +279,18 @@ export default function Dashboard() {
                         </div>
                     </div>
                   </motion.div>
-              )
-          })}
-        </AnimatePresence>
-        {filteredRoutines.length === 0 && (
-            <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 border border-app-border border-dashed rounded-3xl">
-                <CircleDashed className="w-12 h-12 mx-auto text-app-text-s mb-4" />
-                <h3 className="text-white font-medium mb-1">No Habits Found</h3>
-                <p className="text-app-text-s text-sm">
-                  {selectedCategory === 'All' ? 'Create some habits to get started.' : `No habits in the ${selectedCategory} category.`}
-                </p>
-            </motion.div>
+                )
+              })}
+            </AnimatePresence>
+            </div>
+            </div>
+          )
+        })
         )}
+      </div>
+
+      <div className="flex justify-center w-full">
+          <HabitHeatmap />
       </div>
     </div>
   );

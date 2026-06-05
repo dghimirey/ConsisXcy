@@ -10,7 +10,6 @@ import Layout from './components/shared/Layout';
 
 import Dashboard from './pages/Dashboard';
 import RoutinesPage from './pages/RoutinesPage';
-import AnalyticsPage from './pages/AnalyticsPage';
 import Login from './pages/Login';
 
 const queryClient = new QueryClient();
@@ -25,7 +24,6 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="routines" element={<RoutinesPage />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
