@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, LineChart, LogOut, Activity, ChevronLeft, ChevronRight, UserCircle } from 'lucide-react';
+import { LayoutDashboard, ListTodo, LineChart, LogOut, Activity, ChevronLeft, ChevronRight, UserCircle, Sun, Moon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { checkAuth } from '../../services/api';
 import { useEffect, useState } from 'react';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function Layout() {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const { data, error, isError } = useQuery({ queryKey: ['auth'], queryFn: checkAuth, retry: false });
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-[100dvh] bg-app-bg text-app-text-p flex-col md:flex-row overflow-hidden">
+    <div className="flex h-[100dvh] bg-app-bg text-app-text-p flex-col md:flex-row overflow-hidden transition-colors duration-300">
       {/* Desktop Sidebar */}
       <aside className={`relative hidden md:flex ${isCollapsed ? 'w-[88px]' : 'w-64'} transition-all duration-300 ease-in-out border-r border-app-border bg-app-surface backdrop-blur-md flex-col items-center py-8 z-10`}>
         <button 
@@ -35,16 +37,20 @@ export default function Layout() {
             <h1 className={`font-display text-2xl font-bold tracking-tight text-white transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>ConsisXcy</h1>
         </div>
         <nav className={`flex flex-col gap-2 w-full px-4`}>
-          <NavLink to="/" end className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`} title="Dashboard">
+          <NavLink to="/" end className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Dashboard">
             <LayoutDashboard className="w-5 h-5 shrink-0" />
             {!isCollapsed && <span>Dashboard</span>}
           </NavLink>
-          <NavLink to="/routines" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-white hover:bg-app-glass'}`} title="Routines">
+          <NavLink to="/routines" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Routines">
             <ListTodo className="w-5 h-5 shrink-0" />
             {!isCollapsed && <span>Routines</span>}
           </NavLink>
         </nav>
         <div className={`mt-auto w-full px-4 flex flex-col gap-2`}>
+            <button onClick={toggleTheme} className={`flex items-center ${isCollapsed ? 'justify-center px-0 cursor-pointer' : 'gap-3 px-4 cursor-pointer'} w-full py-3 rounded-xl text-app-text-s hover:text-app-text-p hover:bg-app-glass transition-colors`} title="Toggle Theme">
+                {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
+                {!isCollapsed && <span>{theme === 'dark' ? 'High Contrast' : 'Dark Mode'}</span>}
+            </button>
             <button onClick={handleLogout} className={`flex items-center ${isCollapsed ? 'justify-center px-0 cursor-pointer' : 'gap-3 px-4 cursor-pointer'} w-full py-3 rounded-xl text-app-text-s hover:text-rose-400 hover:bg-rose-500/10 transition-colors`} title="Logout">
                 <LogOut className="w-5 h-5 shrink-0" />
                 {!isCollapsed && <span>Logout</span>}
@@ -57,11 +63,15 @@ export default function Layout() {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-app-border bg-app-surface/90 backdrop-blur-md flex justify-around items-center px-2 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-app-border bg-app-surface/90 backdrop-blur-md flex justify-around items-center px-2 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] z-50 transition-colors duration-300">
         <NavLink to="/" end className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive ? 'text-app-accent' : 'text-app-text-s'}`}>
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[10px] uppercase font-mono tracking-wider">Home</span>
         </NavLink>
+        <button onClick={toggleTheme} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 text-app-text-s hover:text-app-text-p">
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          <span className="text-[10px] uppercase font-mono tracking-wider">Theme</span>
+        </button>
         <NavLink to="/routines" className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive ? 'text-app-accent' : 'text-app-text-s'}`}>
           <ListTodo className="w-5 h-5" />
           <span className="text-[10px] uppercase font-mono tracking-wider">Routines</span>

@@ -80,10 +80,10 @@ export function HabitHeatmap({ category = 'All' }: { category?: string }) {
                className={`aspect-square rounded-md flex flex-col items-center justify-center relative hover:scale-[1.15] transition-all duration-300 cursor-pointer ${bgClass} ${isToday && status === 'NONE' ? 'ring-1 ring-app-accent/50' : ''}`}
                title={`${day.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : percentage + '% Complete'}`}
              >
-                <span className={`text-[10px] font-mono ${status === 'NONE' ? 'text-app-text-s' : 'text-white font-medium drop-shadow-md'}`}>
+                <span className={`text-[10px] font-mono flex items-center justify-center w-full h-full ${status === 'NONE' ? 'text-app-text-s' : 'text-constant-white font-medium drop-shadow-md'}`}>
                   {day.format('D')}
                 </span>
-                {isToday && <div className={`absolute bottom-0.5 w-[3px] h-[3px] rounded-full ${status === 'NONE' ? 'bg-app-accent' : 'bg-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]'}`}/>}
+                {isToday && <div className={`absolute bottom-0.5 w-[3px] h-[3px] rounded-full ${status === 'NONE' ? 'bg-app-accent' : 'bg-constant-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]'}`}/>}
              </div>
            );
          })}

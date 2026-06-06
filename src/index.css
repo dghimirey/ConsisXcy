@@ -6,18 +6,42 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
-  --color-app-bg: #050505;
-  --color-app-surface: #0f1115;
-  --color-app-glass: rgba(255, 255, 255, 0.03);
-  --color-app-border: rgba(255, 255, 255, 0.08);
-  --color-app-accent: #c0ff00;
-  --color-app-text-p: #ffffff;
-  --color-app-text-s: #888888;
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-glass: var(--app-glass);
+  --color-app-border: var(--app-border);
+  --color-app-accent: var(--app-accent);
+  --color-app-text-p: var(--app-text-p);
+  --color-app-text-s: var(--app-text-s);
+  --color-app-white: var(--app-white);
+  --color-constant-white: #ffffff;
+}
+
+:root {
+  --app-bg: #050505;
+  --app-surface: #0f1115;
+  --app-glass: rgba(255, 255, 255, 0.03);
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-accent: #c0ff00;
+  --app-text-p: #ffffff;
+  --app-text-s: #888888;
+  --app-white: #ffffff;
+}
+
+[data-theme="high-contrast"] {
+  --app-bg: #ffffff;
+  --app-surface: #f3f4f6;
+  --app-glass: rgba(0, 0, 0, 0.04);
+  --app-border: rgba(0, 0, 0, 0.2);
+  --app-accent: #059669;
+  --app-text-p: #000000;
+  --app-text-s: #374151;
+  --app-white: #000000;
 }
 
 @layer base {
   body {
-    @apply bg-app-bg text-app-text-p antialiased font-sans;
+    @apply bg-app-bg text-app-text-p antialiased font-sans transition-colors duration-300;
   }
 }
 
