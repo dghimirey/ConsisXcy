@@ -8,7 +8,6 @@ export interface Routine {
   targetUnit: string;
   isActive: boolean;
   autoImprovement: boolean;
-  priority: 'Low' | 'Medium' | 'High';
   createdAt: string;
   updatedAt: string;
 }

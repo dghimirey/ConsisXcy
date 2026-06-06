@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Plus, Play, Pause, Trash2, Tag, X, Edit2, ChevronDown, ChevronRight, Check } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Plus, Trash2, Edit2, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchRoutines, createRoutine, updateRoutine, deleteRoutine, fetchCategories, createCategory, updateCategory, deleteCategory, fetchSections, createSection, updateSection, deleteSection } from '../services/api';
+import { fetchRoutines, fetchCategories, fetchSections } from '../services/api';
 import { Routine, Category, Section } from '../types';
 import { formatTarget } from '../lib/utils';
+import { Modal } from '../components/Modal';
+import { useManagementMutations } from '../hooks/useManagementMutations';
+import { RoutineItem } from '../components/RoutineItem';
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 export default function RoutinesPage() {
-  const queryClient = useQueryClient();
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: sections = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
@@ -20,46 +22,43 @@ export default function RoutinesPage() {
   const [editingRoutine, setEditingRoutine] = useState<Partial<Routine> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [editingSection, setEditingSection] = useState<Partial<Section> | null>(null);
+  
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Mutations
-  const updateRoutineMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: any }) => updateRoutine(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routines'] }); setEditingRoutine(null); }
-  });
-  const createRoutineMutation = useMutation({
-    mutationFn: (data: any) => createRoutine(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routines'] }); setEditingRoutine(null); }
-  });
-  const deleteRoutineMutation = useMutation({
-    mutationFn: deleteRoutine,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['routines'] })
-  });
+  const {
+    updateRoutineMutation, createRoutineMutation,
+    updateCategoryMutation, createCategoryMutation, deleteCategoryMutation,
+    updateSectionMutation, createSectionMutation, deleteSectionMutation
+  } = useManagementMutations();
 
-  const updateCategoryMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: any }) => updateCategory(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['categories'] }); setEditingCategory(null); }
-  });
-  const createCategoryMutation = useMutation({
-    mutationFn: (data: any) => createCategory(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['categories'] }); setEditingCategory(null); }
-  });
-  const deleteCategoryMutation = useMutation({
-    mutationFn: deleteCategory,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] })
-  });
+  // Auto-expand sections that have categories
+  useEffect(() => {
+    if (sections.length > 0 && Object.keys(expandedSections).length === 0) {
+      const initial: Record<string, boolean> = {};
+      sections.forEach((s: Section) => { initial[s.id] = true; });
+      setExpandedSections(initial);
+    }
+  }, [sections]);
 
-  const updateSectionMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string, name: string }) => updateSection(id, name),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sections'] }); setEditingSection(null); }
-  });
-  const createSectionMutation = useMutation({
-    mutationFn: (name: string) => createSection(name),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sections'] }); setEditingSection(null); }
-  });
-  const deleteSectionMutation = useMutation({
-    mutationFn: deleteSection,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sections'] })
-  });
+  // Pre-compute hierarchical data
+  const groupedData = useMemo(() => {
+    return sections.map((section: Section) => {
+      const sectionCategories = categories.filter((c: Category) => c.sectionId === section.id).map((category: Category) => {
+        const categoryRoutines = routines.filter((r: Routine) => r.categoryId === category.id);
+        return {
+          ...category,
+          routines: categoryRoutines
+        };
+      });
+      const routineCount = sectionCategories.reduce((sum: number, cat: any) => sum + cat.routines.length, 0);
+      return {
+        ...section,
+        categories: sectionCategories,
+        categoryCount: sectionCategories.length,
+        routineCount
+      };
+    });
+  }, [sections, categories, routines]);
 
   const toggleSection = (id: string) => setExpandedSections(prev => ({...prev, [id]: !prev[id]}));
   const toggleCategory = (id: string) => setExpandedCategories(prev => ({...prev, [id]: !prev[id]}));
@@ -68,31 +67,39 @@ export default function RoutinesPage() {
     <div className="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <h1 className="text-3xl font-display font-bold tracking-tight text-white mb-1">Manage</h1>
-            <p className="text-app-text-s">Organize sections, categories, and routines.</p>
+            <h1 className="text-3xl font-display font-bold tracking-tight text-white mb-2">Manage</h1>
+            <p className="text-app-text-s tracking-wide">Configure sections, schedules, and active routines.</p>
         </div>
         <button 
           onClick={() => setEditingSection({ name: '' })}
-          className="flex items-center justify-center gap-2 bg-app-accent text-app-bg font-medium px-4 py-3 md:py-2 rounded-xl transition-all w-full md:w-auto"
+          className="flex items-center justify-center gap-2 bg-app-accent text-app-bg hover:bg-app-accent/90 shrink-0 font-medium px-5 py-3 md:py-2.5 rounded-xl transition-all shadow-md w-full md:w-auto"
         >
-          <Plus className="w-4 h-4" /> New Section
+          <Plus className="w-4 h-4 text-zinc-900" strokeWidth={3} />
+          New Section
         </button>
       </div>
 
-      <div className="space-y-4">
-        {sections.map((section: Section) => (
+      <div className="space-y-6">
+        {groupedData.map((section: any) => (
           <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] overflow-hidden">
-            <div className="bg-app-surface p-4 flex items-center justify-between cursor-pointer" onClick={() => toggleSection(section.id)}>
-              <div className="flex items-center gap-3">
-                {expandedSections[section.id] ? <ChevronDown className="w-5 h-5 text-app-text-s" /> : <ChevronRight className="w-5 h-5 text-app-text-s" />}
-                <h2 className="text-lg font-semibold text-white">{section.name}</h2>
+            <div className="bg-app-surface/60 p-5 md:p-6 flex items-center justify-between cursor-pointer hover:bg-app-surface/80 transition-colors" onClick={() => toggleSection(section.id)}>
+              <div className="flex items-center gap-4">
+                <div className="p-1 bg-app-bg border border-app-border rounded-lg text-app-text-s">
+                  {expandedSections[section.id] ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-xl font-display font-medium text-white tracking-wide">{section.name}</h2>
+                  <p className="text-xs font-mono text-app-text-s mt-1">
+                    {section.categoryCount} {section.categoryCount === 1 ? 'Category' : 'Categories'} • {section.routineCount} {section.routineCount === 1 ? 'Routine' : 'Routines'}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={(e) => { e.stopPropagation(); setEditingSection(section); }} className="p-2 text-app-text-s hover:text-white rounded-lg hover:bg-app-bg transition-colors">
-                  <Edit2 className="w-4 h-4" />
+              <div className="flex items-center gap-1 md:gap-2">
+                <button onClick={(e) => { e.stopPropagation(); setEditingSection(section); }} className="p-2 md:p-2.5 text-app-text-s hover:text-white rounded-xl hover:bg-app-glass transition-colors">
+                  <Edit2 className="w-4 h-4 md:w-4.5 md:h-4.5" />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); deleteSectionMutation.mutate(section.id); }} className="p-2 text-app-text-s hover:text-rose-400 rounded-lg hover:bg-app-bg transition-colors">
-                  <Trash2 className="w-4 h-4" />
+                <button onClick={(e) => { e.stopPropagation(); deleteSectionMutation.mutate(section.id); }} className="p-2 md:p-2.5 text-app-text-s hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors">
+                  <Trash2 className="w-4 h-4 md:w-4.5 md:h-4.5" />
                 </button>
               </div>
             </div>
@@ -100,23 +107,29 @@ export default function RoutinesPage() {
             <AnimatePresence>
               {expandedSections[section.id] && (
                 <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                  <div className="p-4 pt-2 pb-4 space-y-3 bg-app-bg/50">
-                    {categories.filter((c: Category) => c.sectionId === section.id).map((category: Category) => (
-                      <div key={category.id} className="bg-app-bg border border-app-border rounded-xl ml-4 overflow-hidden">
-                        <div className="p-3 flex items-center justify-between cursor-pointer border-b border-transparent hover:bg-app-surface/50" onClick={() => toggleCategory(category.id)}>
-                          <div className="flex items-center gap-3">
-                            {expandedCategories[category.id] ? <ChevronDown className="w-4 h-4 text-app-text-s" /> : <ChevronRight className="w-4 h-4 text-app-text-s" />}
-                            <h3 className="font-medium text-white">{category.name}</h3>
-                            <div className="flex gap-1">
-                              {DAYS.map((d, i) => category.schedule?.includes(i) ? <span key={d} className="text-[10px] bg-app-accent/20 text-app-accent px-1.5 rounded">{d}</span> : null)}
+                  <div className="p-4 md:p-6 pt-2 pb-6 space-y-4 bg-app-bg/30">
+                    {section.categories.map((category: any) => (
+                      <div key={category.id} className="bg-app-bg border border-app-border/60 rounded-2xl ml-0 md:ml-4 overflow-hidden">
+                        <div className="p-3.5 md:p-4 flex items-center justify-between cursor-pointer border-b border-transparent hover:bg-app-surface/30 transition-colors" onClick={() => toggleCategory(category.id)}>
+                          <div className="flex items-center gap-3 md:gap-4">
+                            <div className="text-app-text-s">
+                              {expandedCategories[category.id] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </div>
+                            <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                              <h3 className="font-medium text-white text-base">{category.name} <span className="text-app-text-s font-normal">({category.routines.length})</span></h3>
+                              {category.schedule && category.schedule.length > 0 && (
+                                <span className="text-[10px] md:text-[11px] uppercase tracking-wider font-mono text-app-accent border border-app-accent/20 bg-app-accent/5 px-2 py-0.5 rounded-md self-start">
+                                  {DAYS.filter((_, i) => category.schedule.includes(i)).join(' • ')}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingCategory(category); }} className="p-1.5 text-app-text-s hover:text-white rounded-md hover:bg-app-glass transition-colors">
-                              <Edit2 className="w-3.5 h-3.5" />
+                            <button onClick={(e) => { e.stopPropagation(); setEditingCategory(category); }} className="p-2 text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
+                              <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteCategoryMutation.mutate(category.id); }} className="p-1.5 text-app-text-s hover:text-rose-400 rounded-md hover:bg-app-glass transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
+                            <button onClick={(e) => { e.stopPropagation(); deleteCategoryMutation.mutate(category.id); }} className="p-2 text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -124,30 +137,14 @@ export default function RoutinesPage() {
                         <AnimatePresence>
                           {expandedCategories[category.id] && (
                             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                              <div className="p-3 bg-app-surface/30 space-y-2 border-t border-app-border/50 pl-8">
-                                {routines.filter((r: Routine) => r.categoryId === category.id).map((routine: Routine) => (
-                                  <div key={routine.id} className="bg-app-glass border border-app-border p-3 rounded-lg flex items-center justify-between group">
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-2 h-2 rounded-full ${routine.isActive ? 'bg-emerald-500' : 'bg-app-text-s'}`}></div>
-                                      <div>
-                                        <p className="text-white font-medium text-sm">{routine.name}</p>
-                                        <p className="text-xs text-app-text-s font-mono">Target: {formatTarget(routine.targetValue)} {routine.targetUnit}</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button onClick={() => setEditingRoutine(routine)} className="p-1.5 text-app-text-s hover:text-white rounded-md hover:bg-app-surface transition-colors">
-                                        <Edit2 className="w-4 h-4" />
-                                      </button>
-                                      <button onClick={() => updateRoutineMutation.mutate({ id: routine.id, data: { isActive: !routine.isActive } })} className="p-1.5 text-app-text-s hover:text-white rounded-md hover:bg-app-surface transition-colors">
-                                        {routine.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                                      </button>
-                                      <button onClick={() => deleteRoutineMutation.mutate(routine.id)} className="p-1.5 text-app-text-s hover:text-rose-400 rounded-md hover:bg-app-surface transition-colors">
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
+                              <div className="p-3 md:p-4 bg-app-surface/20 space-y-3 border-t border-app-border/40 pl-6 md:pl-10">
+                                {category.routines.map((routine: Routine) => (
+                                  <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} />
                                 ))}
-                                <button onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', priority: 'Medium', isActive: true, autoImprovement: false })} className="w-full flex items-center justify-center gap-2 p-2 mt-2 text-sm text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s rounded-lg transition-colors">
+                                <button 
+                                  onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', isActive: true, autoImprovement: false })} 
+                                  className="w-full flex items-center justify-center gap-2 p-3 text-sm font-medium text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors mt-2 bg-app-surface/10 hover:bg-app-surface/30"
+                                >
                                   <Plus className="w-4 h-4" /> Add Routine
                                 </button>
                               </div>
@@ -156,7 +153,11 @@ export default function RoutinesPage() {
                         </AnimatePresence>
                       </div>
                     ))}
-                    <button onClick={() => setEditingCategory({ sectionId: section.id, name: '', schedule: [0,1,2,3,4,5,6] })} className="w-full flex items-center justify-center gap-2 p-3 text-sm text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s rounded-xl transition-colors ml-4" style={{ width: 'calc(100% - 1rem)' }}>
+                    <button 
+                      onClick={() => setEditingCategory({ sectionId: section.id, name: '', schedule: [0,1,2,3,4,5,6] })} 
+                      className="flex items-center justify-center gap-2 p-3 font-medium text-sm text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors ml-0 md:ml-4 bg-app-glass hover:bg-app-surface/40" 
+                      style={{ width: 'calc(100% - 1rem)' }}
+                    >
                       <Plus className="w-4 h-4" /> Add Category
                     </button>
                   </div>
@@ -166,161 +167,177 @@ export default function RoutinesPage() {
           </div>
         ))}
         {sections.length === 0 && (
-          <div className="text-center py-20 text-app-text-s">
-            <p>No sections found. Create one to begin.</p>
+          <div className="text-center py-20 bg-app-glass border border-app-border rounded-[20px]">
+            <p className="text-app-text-s">No sections found. Create one to begin architecting your day.</p>
           </div>
         )}
       </div>
 
-      {/* Editing Section Modal */}
-      <AnimatePresence>
-        {editingSection && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-app-surface w-full max-w-md rounded-2xl border border-app-border flex flex-col">
-              <div className="flex justify-between items-center p-5 border-b border-app-border">
-                <h2 className="text-xl font-medium text-white">{editingSection.id ? 'Edit Section' : 'New Section'}</h2>
-                <button onClick={() => setEditingSection(null)} className="text-app-text-s hover:text-white p-2">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6">
-                <label className="block text-sm font-medium text-app-text-s mb-2">Section Name</label>
-                <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent" value={editingSection.name || ''} onChange={e => setEditingSection({...editingSection, name: e.target.value})} placeholder="e.g. Fitness, Study, Life" />
-              </div>
-              <div className="p-5 border-t border-app-border flex justify-end gap-3">
-                <button onClick={() => setEditingSection(null)} className="px-4 py-2 text-app-text-s hover:text-white transition-colors">Cancel</button>
-                <button onClick={() => {
-                  if (editingSection.id) updateSectionMutation.mutate({ id: editingSection.id, name: editingSection.name || '' });
-                  else createSectionMutation.mutate(editingSection.name || '');
-                }} className="px-6 py-2 bg-app-accent text-app-bg font-medium rounded-xl hover:opacity-90 transition-opacity">Save</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Modal 
+        isOpen={!!editingSection} 
+        onClose={() => setEditingSection(null)} 
+        title={editingSection?.id ? 'Edit Section' : 'New Section'}
+        footer={
+          <>
+            <button onClick={() => setEditingSection(null)} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button 
+              onClick={() => {
+                if (editingSection?.id) updateSectionMutation.mutate({ id: editingSection.id, name: editingSection.name || '' }, { onSuccess: () => setEditingSection(null) });
+                else createSectionMutation.mutate(editingSection?.name || '', { onSuccess: () => setEditingSection(null) });
+              }} 
+              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+            >
+              Save Section
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Section Name</label>
+          <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingSection?.name || ''} onChange={e => setEditingSection((s: any) => ({...s, name: e.target.value}))} placeholder="e.g. Fitness, Study, Deep Work" />
+        </div>
+      </Modal>
 
-      {/* Editing Category Modal */}
-      <AnimatePresence>
-        {editingCategory && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-app-surface w-full max-w-md rounded-2xl border border-app-border flex flex-col">
-              <div className="flex justify-between items-center p-5 border-b border-app-border">
-                <h2 className="text-xl font-medium text-white">{editingCategory.id ? 'Edit Category' : 'New Category'}</h2>
-                <button onClick={() => setEditingCategory(null)} className="text-app-text-s hover:text-white p-2">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Category Name</label>
-                  <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent" value={editingCategory.name || ''} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} placeholder="e.g. Chest, Mathematics" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Parent Section</label>
-                  <select value={editingCategory.sectionId || ''} onChange={e => setEditingCategory({...editingCategory, sectionId: e.target.value})} className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent">
-                    <option value="" disabled>Select Section</option>
-                    {sections.map((sec: Section) => (
-                      <option key={sec.id} value={sec.id}>{sec.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Schedule (Days active)</label>
-                  <div className="flex gap-2">
-                    {DAYS.map((day, idx) => (
-                      <button 
-                        key={idx}
-                        onClick={() => {
-                          const sched = editingCategory.schedule || [];
-                          const newSched = sched.includes(idx) ? sched.filter(d => d !== idx) : [...sched, idx];
-                          setEditingCategory({...editingCategory, schedule: newSched});
-                        }}
-                        className={`flex-1 aspect-square rounded-lg flex items-center justify-center text-xs font-semibold transition-colors ${editingCategory.schedule?.includes(idx) ? 'bg-app-accent text-zinc-900 border border-app-accent' : 'bg-app-bg border border-app-border text-app-text-s hover:border-app-text-s'}`}
-                      >
-                        {day}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="p-5 border-t border-app-border flex justify-end gap-3">
-                <button onClick={() => setEditingCategory(null)} className="px-4 py-2 text-app-text-s hover:text-white transition-colors">Cancel</button>
-                <button onClick={() => {
-                  if (editingCategory.id) updateCategoryMutation.mutate({ id: editingCategory.id, data: editingCategory });
-                  else createCategoryMutation.mutate(editingCategory);
-                }} className="px-6 py-2 bg-app-accent text-app-bg font-medium rounded-xl hover:opacity-90 transition-opacity">Save</button>
-              </div>
+      <Modal 
+        isOpen={!!editingCategory} 
+        onClose={() => setEditingCategory(null)} 
+        title={editingCategory?.id ? 'Edit Category' : 'New Category'}
+        footer={
+          <>
+            <button onClick={() => setEditingCategory(null)} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button 
+              onClick={() => {
+                if (editingCategory?.id) updateCategoryMutation.mutate({ id: editingCategory.id, data: editingCategory }, { onSuccess: () => setEditingCategory(null) });
+                else createCategoryMutation.mutate(editingCategory, { onSuccess: () => setEditingCategory(null) });
+              }} 
+              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+            >
+              Save Category
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Category Name</label>
+            <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingCategory?.name || ''} onChange={e => setEditingCategory((c: any) => ({...c, name: e.target.value}))} placeholder="e.g. Workout, Physics" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Parent Section</label>
+            <select value={editingCategory?.sectionId || ''} onChange={e => setEditingCategory((c: any) => ({...c, sectionId: e.target.value}))} className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors appearance-none cursor-pointer">
+              <option value="" disabled>Select Section</option>
+              {sections.map((sec: Section) => (
+                <option key={sec.id} value={sec.id}>{sec.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Schedule</label>
+            <div className="flex flex-wrap gap-2">
+              {DAYS.map((day, idx) => {
+                const isActive = editingCategory?.schedule?.includes(idx);
+                return (
+                  <button 
+                    key={idx}
+                    onClick={() => {
+                      const sched = editingCategory?.schedule || [];
+                      const newSched = isActive ? sched.filter(d => d !== idx) : [...sched, idx];
+                      setEditingCategory((c: any) => ({...c, schedule: newSched}));
+                    }}
+                    className={`flex-1 min-w-[40px] aspect-[2/1] rounded-lg border-2 flex items-center justify-center text-[11px] uppercase tracking-wider font-semibold transition-all ${isActive ? 'bg-app-accent/10 border-app-accent text-app-accent' : 'bg-app-bg border-transparent text-app-text-s hover:bg-app-surface hover:text-white'}`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </Modal>
 
-      {/* Editing Routine Modal */}
-      <AnimatePresence>
-        {editingRoutine && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pt-20 pb-20">
-            <div className="bg-app-surface w-full max-w-lg rounded-2xl border border-app-border flex flex-col max-h-full">
-              <div className="flex justify-between items-center p-5 border-b border-app-border shrink-0">
-                <h2 className="text-xl font-medium text-white">{editingRoutine.id ? 'Edit Routine' : 'New Routine'}</h2>
-                <button onClick={() => setEditingRoutine(null)} className="text-app-text-s hover:text-white p-2">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 overflow-y-auto flex-1 space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Routine Name</label>
-                  <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent" value={editingRoutine.name || ''} onChange={e => setEditingRoutine({...editingRoutine, name: e.target.value})} placeholder="e.g. 50 Pushups" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Parent Category</label>
-                  <select value={editingRoutine.categoryId || ''} onChange={e => {
-                    const selectedCat = categories.find((c: Category) => c.id === e.target.value);
-                    setEditingRoutine({...editingRoutine, categoryId: e.target.value, category: selectedCat ? selectedCat.name : ''});
-                  }} className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent">
-                    <option value="" disabled>Select Category</option>
-                    {categories.map((cat: Category) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Description / Notes</label>
-                  <textarea className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent resize-none h-24" value={editingRoutine.description || ''} onChange={e => setEditingRoutine({...editingRoutine, description: e.target.value})} placeholder="Optional details..." />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-app-text-s mb-2">Target Value</label>
-                    <input type="number" step="1" min="1" className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent" value={editingRoutine.targetValue ? formatTarget(editingRoutine.targetValue) : ''} onChange={e => setEditingRoutine({...editingRoutine, targetValue: parseFloat(e.target.value)})} placeholder="e.g. 50" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-app-text-s mb-2">Unit</label>
-                    <input type="text" className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent" value={editingRoutine.targetUnit || ''} onChange={e => setEditingRoutine({...editingRoutine, targetUnit: e.target.value})} placeholder="e.g. reps" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-app-text-s mb-2">Priority</label>
-                  <select value={editingRoutine.priority} onChange={e => setEditingRoutine({...editingRoutine, priority: e.target.value as any})} className="w-full bg-app-bg border border-app-border p-3 rounded-xl text-white outline-none focus:border-app-accent">
-                    <option value="Low">Low Priority</option>
-                    <option value="Medium">Medium Priority</option>
-                    <option value="High">High Priority</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-3 bg-app-bg border border-app-border p-4 rounded-xl mt-2">
-                    <input type="checkbox" id="autoImprovementOption" checked={editingRoutine.autoImprovement || false} onChange={e => setEditingRoutine({...editingRoutine, autoImprovement: e.target.checked})} className="w-4 h-4 accent-app-accent bg-app-surface shrink-0" />
-                    <label htmlFor="autoImprovementOption" className="text-sm font-medium text-app-text-p cursor-pointer select-none">1% Daily Improvement <span className="block text-xs text-app-text-s font-normal">Automatically increments target on completion.</span></label>
-                </div>
-              </div>
-              <div className="p-5 border-t border-app-border flex justify-end gap-3 shrink-0">
-                <button onClick={() => setEditingRoutine(null)} className="px-4 py-2 text-app-text-s hover:text-white transition-colors">Cancel</button>
-                <button onClick={() => {
-                  if (editingRoutine.id) updateRoutineMutation.mutate({ id: editingRoutine.id, data: editingRoutine });
-                  else createRoutineMutation.mutate(editingRoutine);
-                }} className="px-6 py-2 bg-app-accent text-app-bg font-medium rounded-xl hover:opacity-90 transition-opacity">Save Routine</button>
-              </div>
+      <Modal 
+        isOpen={!!editingRoutine} 
+        onClose={() => { setEditingRoutine(null); setShowAdvanced(false); }} 
+        title={editingRoutine?.id ? 'Edit Routine' : 'New Routine'}
+        footer={
+          <>
+            <button onClick={() => { setEditingRoutine(null); setShowAdvanced(false); }} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button 
+              onClick={() => {
+                if (editingRoutine?.id) updateRoutineMutation.mutate({ id: editingRoutine.id, data: editingRoutine }, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
+                else createRoutineMutation.mutate(editingRoutine, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
+              }} 
+              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+            >
+              Save Routine
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Routine Name</label>
+            <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.name || ''} onChange={e => setEditingRoutine((r: any) => ({...r, name: e.target.value}))} placeholder="e.g. 50 Pushups" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Parent Category</label>
+            <select value={editingRoutine?.categoryId || ''} onChange={e => {
+              const selectedCat = categories.find((c: Category) => c.id === e.target.value);
+              setEditingRoutine((r: any) => ({...r, categoryId: e.target.value, category: selectedCat ? selectedCat.name : ''}));
+            }} className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors appearance-none cursor-pointer">
+              <option value="" disabled>Select Category</option>
+              {categories.map((cat: Category) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Target</label>
+              <input type="number" step="1" min="1" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.targetValue ? formatTarget(editingRoutine.targetValue) : ''} onChange={e => setEditingRoutine((r: any) => ({...r, targetValue: parseFloat(e.target.value)}))} placeholder="e.g. 50" />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div>
+              <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Unit</label>
+              <input type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.targetUnit || ''} onChange={e => setEditingRoutine((r: any) => ({...r, targetUnit: e.target.value}))} placeholder="e.g. reps" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Notes <span className="text-app-text-s/50">(Optional)</span></label>
+            <textarea className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors resize-none h-24" value={editingRoutine?.description || ''} onChange={e => setEditingRoutine((r: any) => ({...r, description: e.target.value}))} placeholder="Details about this routine..." />
+          </div>
+
+          <div>
+            <button 
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm text-app-text-s hover:text-white transition-colors w-full p-2"
+            >
+              <Settings2 className="w-4 h-4" />
+              Advanced Settings
+              {showAdvanced ? <ChevronDown className="w-3 h-3 ml-auto" /> : <ChevronRight className="w-3 h-3 ml-auto" />}
+            </button>
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <div className="pt-4 pb-2">
+                    <label className="flex items-start gap-3 cursor-pointer group p-4 bg-app-surface/50 border border-app-border rounded-xl">
+                      <div className="flex items-center h-5 mt-0.5">
+                        <input type="checkbox" className="w-4 h-4 text-app-accent bg-app-bg border-app-border rounded focus:ring-app-accent focus:ring-2" checked={editingRoutine?.autoImprovement || false} onChange={e => setEditingRoutine((r: any) => ({...r, autoImprovement: e.target.checked}))} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-white group-hover:text-app-accent transition-colors">Progressive Overload</span>
+                        <span className="text-xs text-app-text-s mt-1">Automatically increment target value by 1% each time this routine is completed.</span>
+                      </div>
+                    </label>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

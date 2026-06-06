@@ -193,10 +193,10 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
   try {
     const sql = getSql();
     const id = crypto.randomUUID();
-    const { name, category, categoryId, description, targetValue, targetUnit, isActive = true, autoImprovement = false, priority = 'Medium' } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, isActive = true, autoImprovement = false } = req.body;
     const routines = await sql`
-      INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "isActive", "autoImprovement", "priority", "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${category}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, ${priority}, NOW(), NOW())
+      INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "isActive", "autoImprovement", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${category}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, NOW(), NOW())
       RETURNING *
     `;
     const routine = routines[0];
@@ -214,11 +214,11 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
 app.put('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const { name, category, categoryId, description, targetValue, targetUnit, isActive, autoImprovement, priority = 'Medium' } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, isActive, autoImprovement } = req.body;
     const routines = await sql`
       UPDATE "Routine"
       SET name = ${name}, category = ${category}, "categoryId" = ${categoryId || null}, description = ${description || null},
-          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "priority" = ${priority}, "updatedAt" = NOW()
+          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "updatedAt" = NOW()
       WHERE id = ${req.params.id}
       RETURNING *
     `;
