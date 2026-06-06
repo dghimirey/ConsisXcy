@@ -8,6 +8,7 @@ import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchC
 import { Routine, Completion, Streak, Category, Section } from '../types';
 import { HabitHeatmap } from '../components/HabitHeatmap';
 import { formatTarget } from '../lib/utils';
+import { calculateGlobalStreaks, calculateRoutineStreak } from '../lib/consistency';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -100,91 +101,51 @@ export default function Dashboard() {
   };
 
   const getStreak = (routineId: string) => {
-     return streaks.find(s => s.routineId === routineId)?.currentStreak || 0;
+     return calculateRoutineStreak(routineId, routines, categoriesData, completions);
   };
 
   const userGlobalStreaks = useMemo(() => {
-    const completedDates = [...new Set(
-      completions
-        .filter(c => c.status === 'COMPLETED')
-        .map(c => new Date(c.date).toISOString().split('T')[0])
-    )].sort();
-
-    if (completedDates.length === 0) return { current: 0, longest: 0 };
-
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 1;
-
-    for (let i = 1; i < completedDates.length; i++) {
-        const prevDate = new Date(completedDates[i - 1]);
-        const currDate = new Date(completedDates[i]);
-        const diffTime = currDate.getTime() - prevDate.getTime();
-        const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
-
-        if (diffDays === 1) {
-            tempStreak++;
-        } else if (diffDays > 1) {
-            if (tempStreak > longestStreak) longestStreak = tempStreak;
-            tempStreak = 1;
-        }
-    }
-    if (tempStreak > longestStreak) longestStreak = tempStreak;
-
-    const todayString = format(new Date(), 'yyyy-MM-dd');
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayString = format(yesterday, 'yyyy-MM-dd');
-    
-    const lastCompletedDate = completedDates[completedDates.length - 1];
-
-    if (lastCompletedDate === todayString || lastCompletedDate === yesterdayString) {
-        currentStreak = tempStreak;
-    } else {
-        currentStreak = 0;
-    }
-
-    return { current: currentStreak, longest: longestStreak };
-  }, [completions]);
+    return calculateGlobalStreaks(routines, categoriesData, completions);
+  }, [routines, categoriesData, completions]);
 
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       {/* Global Streaks Section */}
-      <div className="grid grid-cols-2 gap-4 md:gap-6 mb-8 md:mb-10">
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex items-center gap-2 mb-2 relative z-10">
-            <Flame className="w-5 h-5 text-app-accent" />
-            <h3 className="text-xs uppercase tracking-wider text-app-text-s font-mono font-medium">Current Streak</h3>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-8 md:mb-10">
+        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 relative z-10">
+            <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-app-accent shrink-0" />
+            <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Current Streak</h3>
           </div>
-          <p className="text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-2">
-            {userGlobalStreaks.current} <span className="text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
+          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
+            {userGlobalStreaks.current} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
           </p>
-          <div className="absolute -bottom-10 -right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
-             <Flame className="w-48 h-48" />
+          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
+             <Flame className="w-24 h-24 sm:w-48 sm:h-48" />
           </div>
         </div>
 
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex items-center gap-2 mb-2 relative z-10">
-             <Trophy className="w-5 h-5 text-amber-400" />
-            <h3 className="text-xs uppercase tracking-wider text-app-text-s font-mono font-medium">Longest Streak</h3>
+        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 relative z-10">
+             <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
+            <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Longest Streak</h3>
           </div>
-          <p className="text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-2">
-            {userGlobalStreaks.longest} <span className="text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
+          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
+            {userGlobalStreaks.longest} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
           </p>
-          <div className="absolute -bottom-10 -right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
-             <Trophy className="w-48 h-48" />
+          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
+             <Trophy className="w-24 h-24 sm:w-48 sm:h-48" />
           </div>
         </div>
       </div>
 
-      <header className="mb-6 md:mb-12">
+      <header className="mb-6 md:mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-display font-bold mb-2 tracking-tight text-white flex justify-between items-center">
+            <h1 className="text-2xl md:text-3xl font-display font-bold mb-1.5 md:mb-2 tracking-tight text-white flex justify-between items-center">
               Today's Plan
             </h1>
-            <p className="text-app-text-s font-mono text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
+            <p className="text-app-text-s font-mono text-xs md:text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
           </div>
         </div>
       </header>
@@ -203,15 +164,15 @@ export default function Dashboard() {
             const totalCount = sectionRoutines.length;
 
             return (
-              <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] p-5 md:p-6 flex flex-col gap-4">
-                <div className="flex justify-between items-center border-b border-app-border/50 pb-4 mb-2">
-                  <h2 className="text-xl font-display font-medium text-white">{section.name}</h2>
-                  <span className="text-sm font-mono text-app-text-s tracking-wide">
+              <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-5 md:p-6 flex flex-col gap-3 md:gap-4">
+                <div className="flex justify-between items-center border-b border-app-border/50 pb-3 md:pb-4 mb-2">
+                  <h2 className="text-lg md:text-xl font-display font-medium text-white truncate pr-2">{section.name}</h2>
+                  <span className="text-[10px] md:text-sm font-mono text-app-text-s tracking-wide whitespace-nowrap">
                     {completedCount}/{totalCount} Completed
                   </span>
                 </div>
                 
-                <div className="flex flex-col">
+                <div className="flex flex-col gap-1 md:gap-2">
                   <AnimatePresence mode="popLayout">
                     {sectionRoutines.map((routine: any) => {
                       const status = getDayStatus(routine.id);
@@ -225,7 +186,7 @@ export default function Dashboard() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
                               key={routine.id} 
-                              className={`group px-3 py-3 md:px-4 md:py-3.5 -mx-3 md:-mx-4 rounded-[12px] flex items-center gap-4 transition-colors hover:bg-app-surface cursor-pointer ${isCompleted ? 'opacity-60 hover:opacity-100' : ''}`}
+                              className={`group px-3 py-3 md:px-4 md:py-3.5 -mx-3 md:-mx-4 rounded-[12px] flex items-center gap-3 md:gap-4 transition-all duration-300 cursor-pointer ${isCompleted ? 'bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)] scale-[0.99] hover:bg-emerald-500/15' : 'hover:bg-app-surface'}`}
                               onClick={(e) => {
                                  // To prevent double triggering if checkbox is clicked directly
                                  const target = e.target as HTMLElement;
@@ -234,11 +195,13 @@ export default function Dashboard() {
                                  const newStatus = isCompleted ? 'MISSED' : 'COMPLETED';
                                  mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: routine.targetValue, value: newStatus === 'COMPLETED' ? routine.targetValue : 0 });
                                  if (newStatus === 'COMPLETED') {
-                                     // confetti logic
-                                     const rect = e.currentTarget.getBoundingClientRect();
-                                     const x = (rect.left + rect.width / 2) / window.innerWidth;
-                                     const y = (rect.top + rect.height / 2) / window.innerHeight;
-                                     confetti({ particleCount: 80, spread: 60, origin: { x, y }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                     // Check if this completes the section
+                                     const completesSection = sectionRoutines.every((r: any) => 
+                                         r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
+                                     );
+                                     if (completesSection) {
+                                         confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                     }
                                  }
                               }}
                           >
@@ -249,31 +212,35 @@ export default function Dashboard() {
                                     mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: routine.targetValue, value: newStatus === 'COMPLETED' ? routine.targetValue : 0 });
                                     
                                     if (newStatus === 'COMPLETED') {
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        const x = (rect.left + rect.width / 2) / window.innerWidth;
-                                        const y = (rect.top + rect.height / 2) / window.innerHeight;
-                                        confetti({ particleCount: 80, spread: 60, origin: { x, y }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                        const completesSection = sectionRoutines.every((r: any) => 
+                                            r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
+                                        );
+                                        if (completesSection) {
+                                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                        }
                                     }
                                 }}
-                                className={`w-6 h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all border shadow-sm ${isCompleted ? 'bg-app-accent border-app-accent text-app-bg' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70'}`}
+                                className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm ${isCompleted ? 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)] scale-110' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70 hover:scale-105'}`}
                             >
-                                <Check className="w-4 h-4" strokeWidth={3} />
+                                <Check className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-transform duration-300 ${isCompleted ? 'scale-100 rotate-0' : 'scale-0 -rotate-90'}`} strokeWidth={3} />
                             </button>
                             
-                            <div className="flex flex-col gap-0.5 flex-1 select-none">
-                                <h3 className={`text-base font-medium transition-colors ${isCompleted ? 'text-app-text-s line-through decoration-app-text-s/50' : 'text-white group-hover:text-app-accent'}`}>
+                            <div className="flex flex-col gap-0.5 flex-1 select-none overflow-hidden">
+                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate ${isCompleted ? 'text-emerald-50' : 'text-white group-hover:text-emerald-400'}`}>
                                     {routine.name}
                                 </h3>
-                                <div className="flex items-center gap-2 mt-0.5 max-w-full overflow-hidden">
-                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-app-surface/60 border border-app-border text-app-text-s tracking-wide uppercase truncate">
-                                      {routine.categoryName}
-                                    </span>
-                                    {currentStreak > 0 && (
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-mono tracking-wide">
-                                            <Flame className="w-2.5 h-2.5" />
-                                            {currentStreak}
-                                        </div>
-                                    )}
+                                <div className="flex max-w-full overflow-x-auto hide-scrollbar">
+                                    <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 whitespace-nowrap min-w-max pb-0.5">
+                                        <span className="text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md bg-app-surface/60 border border-app-border text-app-text-s tracking-wide uppercase">
+                                          {routine.categoryName}
+                                        </span>
+                                        {currentStreak > 0 && (
+                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] md:text-[10px] font-mono tracking-wide">
+                                                <Flame className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                                                {currentStreak}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                           </motion.div>

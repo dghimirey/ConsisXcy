@@ -9,7 +9,7 @@ import { Modal } from '../components/Modal';
 import { useManagementMutations } from '../hooks/useManagementMutations';
 import { RoutineItem } from '../components/RoutineItem';
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function RoutinesPage() {
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
@@ -67,8 +67,7 @@ export default function RoutinesPage() {
     <div className="p-4 md:p-8 max-w-4xl mx-auto pb-24 md:pb-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-            <h1 className="text-3xl font-display font-bold tracking-tight text-white mb-2">Manage</h1>
-            <p className="text-app-text-s tracking-wide">Configure sections, schedules, and active routines.</p>
+            <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-white mb-1.5 md:mb-2">Manage</h1>
         </div>
         <button 
           onClick={() => setEditingSection({ name: '' })}
@@ -82,24 +81,24 @@ export default function RoutinesPage() {
       <div className="space-y-6">
         {groupedData.map((section: any) => (
           <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] overflow-hidden">
-            <div className="bg-app-surface/60 p-5 md:p-6 flex items-center justify-between cursor-pointer hover:bg-app-surface/80 transition-colors" onClick={() => toggleSection(section.id)}>
-              <div className="flex items-center gap-4">
+            <div className="bg-app-surface/60 p-4 md:p-6 flex items-center justify-between cursor-pointer hover:bg-app-surface/80 transition-colors" onClick={() => toggleSection(section.id)}>
+              <div className="flex items-center gap-3 md:gap-4">
                 <div className="p-1 bg-app-bg border border-app-border rounded-lg text-app-text-s">
-                  {expandedSections[section.id] ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  {expandedSections[section.id] ? <ChevronDown className="w-4 h-4 md:w-5 md:h-5" /> : <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />}
                 </div>
                 <div>
-                  <h2 className="text-lg md:text-xl font-display font-medium text-white tracking-wide">{section.name}</h2>
-                  <p className="text-xs font-mono text-app-text-s mt-1">
+                  <h2 className="text-base md:text-xl font-display font-medium text-white tracking-wide">{section.name}</h2>
+                  <p className="text-[10px] md:text-xs font-mono text-app-text-s mt-0.5 md:mt-1">
                     {section.categoryCount} {section.categoryCount === 1 ? 'Category' : 'Categories'} • {section.routineCount} {section.routineCount === 1 ? 'Routine' : 'Routines'}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 md:gap-2">
-                <button onClick={(e) => { e.stopPropagation(); setEditingSection(section); }} className="p-2 md:p-2.5 text-app-text-s hover:text-white rounded-xl hover:bg-app-glass transition-colors">
-                  <Edit2 className="w-4 h-4 md:w-4.5 md:h-4.5" />
+              <div className="flex items-center gap-1">
+                <button onClick={(e) => { e.stopPropagation(); setEditingSection(section); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-white rounded-xl hover:bg-app-glass transition-colors">
+                  <Edit2 className="w-5 h-5" />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); deleteSectionMutation.mutate(section.id); }} className="p-2 md:p-2.5 text-app-text-s hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors">
-                  <Trash2 className="w-4 h-4 md:w-4.5 md:h-4.5" />
+                <button onClick={(e) => { e.stopPropagation(); deleteSectionMutation.mutate(section.id); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors">
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -110,25 +109,25 @@ export default function RoutinesPage() {
                   <div className="p-4 md:p-6 pt-2 pb-6 space-y-4 bg-app-bg/30">
                     {section.categories.map((category: any) => (
                       <div key={category.id} className="bg-app-bg border border-app-border/60 rounded-2xl ml-0 md:ml-4 overflow-hidden">
-                        <div className="p-3.5 md:p-4 flex items-center justify-between cursor-pointer border-b border-transparent hover:bg-app-surface/30 transition-colors" onClick={() => toggleCategory(category.id)}>
-                          <div className="flex items-center gap-3 md:gap-4">
-                            <div className="text-app-text-s">
-                              {expandedCategories[category.id] ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <div className="p-3 md:p-4 flex items-center justify-between cursor-pointer border-b border-transparent hover:bg-app-surface/30 transition-colors" onClick={() => toggleCategory(category.id)}>
+                          <div className="flex items-center gap-2 md:gap-4 font-mono">
+                            <div className="text-app-text-s mt-0.5 md:mt-0">
+                              {expandedCategories[category.id] ? <ChevronDown className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />}
                             </div>
-                            <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-                              <h3 className="font-medium text-white text-base">{category.name} <span className="text-app-text-s font-normal">({category.routines.length})</span></h3>
+                            <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-3">
+                              <h3 className="font-medium font-sans text-white text-sm md:text-base">{category.name} <span className="text-app-text-s font-normal">({category.routines.length})</span></h3>
                               {category.schedule && category.schedule.length > 0 && (
-                                <span className="text-[10px] md:text-[11px] uppercase tracking-wider font-mono text-app-accent border border-app-accent/20 bg-app-accent/5 px-2 py-0.5 rounded-md self-start">
-                                  {DAYS.filter((_, i) => category.schedule.includes(i)).join(' • ')}
+                                <span className="text-[10px] md:text-xs text-app-text-s/80 font-normal md:pt-0.5">
+                                  {DAYS.filter((_, i) => category.schedule.includes(i)).join(' ')}
                                 </span>
                               )}
                             </div>
                           </div>
                           <div className="flex gap-1">
-                            <button onClick={(e) => { e.stopPropagation(); setEditingCategory(category); }} className="p-2 text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
+                            <button onClick={(e) => { e.stopPropagation(); setEditingCategory(category); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteCategoryMutation.mutate(category.id); }} className="p-2 text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
+                            <button onClick={(e) => { e.stopPropagation(); deleteCategoryMutation.mutate(category.id); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -137,7 +136,7 @@ export default function RoutinesPage() {
                         <AnimatePresence>
                           {expandedCategories[category.id] && (
                             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                              <div className="p-3 md:p-4 bg-app-surface/20 space-y-3 border-t border-app-border/40 pl-6 md:pl-10">
+                              <div className="p-2.5 md:p-4 bg-app-surface/20 space-y-2.5 md:space-y-3 border-t border-app-border/40 pl-3 md:pl-10">
                                 {category.routines.map((routine: Routine) => (
                                   <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} />
                                 ))}
@@ -155,8 +154,7 @@ export default function RoutinesPage() {
                     ))}
                     <button 
                       onClick={() => setEditingCategory({ sectionId: section.id, name: '', schedule: [0,1,2,3,4,5,6] })} 
-                      className="flex items-center justify-center gap-2 p-3 font-medium text-sm text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors ml-0 md:ml-4 bg-app-glass hover:bg-app-surface/40" 
-                      style={{ width: 'calc(100% - 1rem)' }}
+                      className="flex items-center justify-center gap-2 p-3 font-medium text-sm text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors ml-0 md:ml-4 bg-app-glass hover:bg-app-surface/40 w-full md:w-[calc(100%-1rem)]" 
                     >
                       <Plus className="w-4 h-4" /> Add Category
                     </button>
@@ -179,13 +177,13 @@ export default function RoutinesPage() {
         title={editingSection?.id ? 'Edit Section' : 'New Section'}
         footer={
           <>
-            <button onClick={() => setEditingSection(null)} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button onClick={() => setEditingSection(null)} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
             <button 
               onClick={() => {
                 if (editingSection?.id) updateSectionMutation.mutate({ id: editingSection.id, name: editingSection.name || '' }, { onSuccess: () => setEditingSection(null) });
                 else createSectionMutation.mutate(editingSection?.name || '', { onSuccess: () => setEditingSection(null) });
               }} 
-              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
             >
               Save Section
             </button>
@@ -204,13 +202,13 @@ export default function RoutinesPage() {
         title={editingCategory?.id ? 'Edit Category' : 'New Category'}
         footer={
           <>
-            <button onClick={() => setEditingCategory(null)} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button onClick={() => setEditingCategory(null)} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
             <button 
               onClick={() => {
                 if (editingCategory?.id) updateCategoryMutation.mutate({ id: editingCategory.id, data: editingCategory }, { onSuccess: () => setEditingCategory(null) });
                 else createCategoryMutation.mutate(editingCategory, { onSuccess: () => setEditingCategory(null) });
               }} 
-              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
             >
               Save Category
             </button>
@@ -261,13 +259,13 @@ export default function RoutinesPage() {
         title={editingRoutine?.id ? 'Edit Routine' : 'New Routine'}
         footer={
           <>
-            <button onClick={() => { setEditingRoutine(null); setShowAdvanced(false); }} className="px-5 py-2.5 text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+            <button onClick={() => { setEditingRoutine(null); setShowAdvanced(false); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
             <button 
               onClick={() => {
                 if (editingRoutine?.id) updateRoutineMutation.mutate({ id: editingRoutine.id, data: editingRoutine }, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
                 else createRoutineMutation.mutate(editingRoutine, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
               }} 
-              className="px-6 py-2.5 text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
+              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
             >
               Save Routine
             </button>

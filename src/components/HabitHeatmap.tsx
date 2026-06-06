@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { fetchCompletions, fetchRoutines } from '../services/api';
+import { fetchCompletions, fetchRoutines, fetchCategories } from '../services/api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getDayCompletionStatus } from '../lib/consistency';
 
 export function HabitHeatmap({ category = 'All' }: { category?: string }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
 
   const currentMonth = dayjs().add(monthOffset, 'month').startOf('month');
   const daysInMonth = currentMonth.daysInMonth();
@@ -17,54 +19,7 @@ export function HabitHeatmap({ category = 'All' }: { category?: string }) {
   const prefixDays = Array(startDay).fill(null);
 
   const getDayStatus = (date: dayjs.Dayjs) => {
-    const dateStr = date.format('YYYY-MM-DD');
-    const todayStr = dayjs().format('YYYY-MM-DD');
-    const isDayEnded = dateStr < todayStr;
-
-    let filteredCompletions = completions.filter((c: any) => {
-      const cDateStr = typeof c.date === 'string' ? c.date.substring(0, 10) : new Date(c.date).toISOString().substring(0, 10);
-      return cDateStr === dateStr;
-    });
-
-    const expectedRoutines = routines.filter(r => {
-      if (category !== 'All' && r.category !== category) return false;
-      if (!r.isActive) return false;
-      const createdDateStr = new Date(r.createdAt).toISOString().split('T')[0];
-      return createdDateStr <= dateStr;
-    });
-
-    if (category !== 'All') {
-      const routineIdsInCategory = routines.filter(r => r.category === category).map(r => r.id);
-      filteredCompletions = filteredCompletions.filter(c => routineIdsInCategory.includes(c.routineId));
-    }
-
-    const expectedIds = new Set(expectedRoutines.map(r => r.id));
-    filteredCompletions.forEach(c => expectedIds.add(c.routineId));
-    const totalTasks = expectedIds.size;
-
-    if (totalTasks === 0) return 'NONE';
-
-    let completedTasks = 0;
-    let explicitlyMissed = 0;
-
-    expectedIds.forEach(id => {
-      if (filteredCompletions.some(c => c.routineId === id && c.status === 'COMPLETED')) {
-        completedTasks++;
-      } else if (filteredCompletions.some(c => c.routineId === id && c.status === 'MISSED')) {
-        explicitlyMissed++;
-      }
-    });
-
-    if (completedTasks === totalTasks && totalTasks > 0) {
-      return 'ALL';
-    } else if (completedTasks > 0) {
-      return 'SOME';
-    } else {
-      if (isDayEnded || (explicitlyMissed === totalTasks && totalTasks > 0)) {
-        return 'MISSED';
-      }
-      return 'NONE';
-    }
+    return getDayCompletionStatus(date.format('YYYY-MM-DD'), routines, categories, completions, category);
   };
 
   return (
@@ -97,24 +52,38 @@ export function HabitHeatmap({ category = 'All' }: { category?: string }) {
            <div key={`empty-${i}`} className="aspect-square" />
          ))}
           {days.map(day => {
-           const status = getDayStatus(day);
-           let bgClass = 'bg-app-border/50'; // NONE
-           if (status === 'ALL') bgClass = 'bg-emerald-500';
-           else if (status === 'SOME') bgClass = 'bg-amber-500';
-           else if (status === 'MISSED') bgClass = 'bg-[#ef4444]';
+           const result = getDayStatus(day);
+           const status = result.status;
+           const percentage = result.percentage;
+           
+           let bgClass = 'bg-app-border/30 hover:bg-app-border/50'; // NONE
+           
+           if (status !== 'NONE') {
+             if (percentage === 100) {
+               bgClass = 'bg-gradient-to-br from-[#166534] to-[#16A34A] border border-[#16A34A]/60 shadow-[0_0_10px_rgba(22,163,74,0.4),inset_0_1px_rgba(255,255,255,0.2)] hover:shadow-[0_0_15px_rgba(22,163,74,0.6)] z-20';
+             } else if (percentage >= 75) {
+               bgClass = 'bg-gradient-to-br from-[#064E3B] to-[#047857] border border-[#059669]/50 shadow-[0_0_6px_rgba(4,120,87,0.3)] hover:shadow-[0_0_10px_rgba(4,120,87,0.5)] z-10';
+             } else if (percentage >= 50) {
+               bgClass = 'bg-gradient-to-br from-[#78350F] to-[#B45309] border border-[#D97706]/50 shadow-[0_0_6px_rgba(180,83,9,0.3)] hover:shadow-[0_0_10px_rgba(180,83,9,0.5)] z-10';
+             } else if (percentage > 0) {
+               bgClass = 'bg-gradient-to-br from-[#7C2D12] to-[#9A3412] border border-[#C2410C]/50 shadow-[0_0_6px_rgba(154,52,18,0.3)] z-10';
+             } else {
+               bgClass = 'bg-gradient-to-br from-[#450a0a] to-[#7f1d1d] border border-[#991b1b]/50 shadow-[0_0_4px_rgba(153,27,27,0.2)] z-10';
+             }
+           }
            
            const isToday = day.isSame(dayjs(), 'day');
 
            return (
              <div 
                key={day.format('YYYY-MM-DD')} 
-               className={`aspect-square rounded-md ${bgClass} flex flex-col items-center justify-center relative hover:scale-110 transition-transform cursor-pointer`}
-               title={`${day.format('MMM D, YYYY')}: ${status === 'ALL' ? 'All tasks complete' : status === 'SOME' ? 'Some tasks complete' : status === 'MISSED' ? 'Missed' : 'No tasks'}`}
+               className={`aspect-square rounded-md flex flex-col items-center justify-center relative hover:scale-[1.15] transition-all duration-300 cursor-pointer ${bgClass} ${isToday && status === 'NONE' ? 'ring-1 ring-app-accent/50' : ''}`}
+               title={`${day.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : percentage + '% Complete'}`}
              >
-                <span className={`text-[10px] font-mono ${status === 'NONE' ? 'text-app-text-s' : 'text-white font-bold'}`}>
+                <span className={`text-[10px] font-mono ${status === 'NONE' ? 'text-app-text-s' : 'text-white font-medium drop-shadow-md'}`}>
                   {day.format('D')}
                 </span>
-                {isToday && <div className={`absolute bottom-0.5 w-1 h-1 rounded-full ${status === 'NONE' ? 'bg-app-text-s' : 'bg-white'}`}/>}
+                {isToday && <div className={`absolute bottom-0.5 w-[3px] h-[3px] rounded-full ${status === 'NONE' ? 'bg-app-accent' : 'bg-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]'}`}/>}
              </div>
            );
          })}

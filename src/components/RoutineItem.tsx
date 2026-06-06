@@ -29,9 +29,9 @@ export function RoutineItem({ routine, onEdit }: RoutineItemProps) {
       <div className="relative">
         <button 
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-1.5 md:p-2 text-app-text-s hover:text-white rounded-lg hover:bg-app-surface transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-app-text-s hover:text-white rounded-lg hover:bg-app-surface transition-colors"
         >
-          <MoreVertical className="w-4 h-4 md:w-5 md:h-5" />
+          <MoreVertical className="w-5 h-5" />
         </button>
 
         <AnimatePresence>
