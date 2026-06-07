@@ -172,6 +172,16 @@ app.put('/api/sections/:id', authenticate, async (req: express.Request, res: exp
 app.delete('/api/sections/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
+    
+    // First, find all categories in this section
+    const cats = await sql`SELECT id FROM "Category" WHERE "sectionId" = ${req.params.id}`;
+    for (const cat of cats) {
+      // Unlink routines
+      await sql`UPDATE "Routine" SET category = 'Uncategorized', "categoryId" = NULL WHERE "categoryId" = ${cat.id}`;
+      // Delete category
+      await sql`DELETE FROM "Category" WHERE id = ${cat.id}`;
+    }
+    
     await sql`DELETE FROM "Section" WHERE id = ${req.params.id}`;
     res.json({ success: true });
   } catch (e: any) {
@@ -194,9 +204,15 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
     const sql = getSql();
     const id = crypto.randomUUID();
     const { name, category, categoryId, description, targetValue, targetUnit, isActive = true, autoImprovement = false } = req.body;
+    
+    if (!name || (!category && !categoryId) || targetValue === undefined || !targetUnit) {
+      res.status(400).json({ error: "Missing required fields" });
+      return;
+    }
+    
     const routines = await sql`
       INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "isActive", "autoImprovement", "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${category}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, NOW(), NOW())
+      VALUES (${id}, ${name}, ${category || 'Uncategorized'}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${isActive}, ${autoImprovement}, NOW(), NOW())
       RETURNING *
     `;
     const routine = routines[0];
@@ -207,7 +223,11 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
     `;
     res.json(routine);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    if (e.message?.includes('duplicate key') || e.message?.includes('unique constraint')) {
+      res.status(409).json({ error: "Routine already exists" });
+    } else {
+      res.status(500).json({ error: e.message });
+    }
   }
 });
 
@@ -215,22 +235,37 @@ app.put('/api/routines/:id', authenticate, async (req: express.Request, res: exp
   try {
     const sql = getSql();
     const { name, category, categoryId, description, targetValue, targetUnit, isActive, autoImprovement } = req.body;
+    
+    if (!name || (!category && !categoryId) || targetValue === undefined || !targetUnit) {
+      res.status(400).json({ error: "Missing required fields" });
+      return;
+    }
+
     const routines = await sql`
       UPDATE "Routine"
-      SET name = ${name}, category = ${category}, "categoryId" = ${categoryId || null}, description = ${description || null},
+      SET name = ${name}, category = ${category || 'Uncategorized'}, "categoryId" = ${categoryId || null}, description = ${description || null},
           "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "updatedAt" = NOW()
       WHERE id = ${req.params.id}
       RETURNING *
     `;
+    if (routines.length === 0) {
+      res.status(404).json({ error: "Routine not found" });
+      return;
+    }
     res.json(routines[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    if (e.message?.includes('duplicate key') || e.message?.includes('unique constraint')) {
+      res.status(409).json({ error: "Routine name already exists" });
+    } else {
+      res.status(500).json({ error: e.message });
+    }
   }
 });
 
 app.delete('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
+    await sql`DELETE FROM "Completion" WHERE "routineId" = ${req.params.id}`;
     await sql`DELETE FROM "Routine" WHERE id = ${req.params.id}`;
     res.json({ success: true });
   } catch (e: any) {
@@ -339,7 +374,11 @@ app.post('/api/categories', authenticate, async (req: express.Request, res: expr
     `;
     res.json(categories[0]);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    if (e.message?.includes('duplicate key') || e.message?.includes('unique constraint')) {
+      res.status(409).json({ error: "Category name already exists" });
+    } else {
+      res.status(500).json({ error: e.message });
+    }
   }
 });
 
@@ -366,7 +405,7 @@ app.delete('/api/categories/:id', authenticate, async (req: express.Request, res
     const sql = getSql();
     const oldCat = await sql`SELECT name FROM "Category" WHERE id = ${req.params.id}`;
     if (oldCat.length > 0 && oldCat[0].name) {
-      await sql`UPDATE "Routine" SET category = 'Uncategorized' WHERE category = ${oldCat[0].name}`;
+      await sql`UPDATE "Routine" SET category = 'Uncategorized', "categoryId" = NULL WHERE "categoryId" = ${req.params.id}`;
     }
     await sql`DELETE FROM "Category" WHERE id = ${req.params.id}`;
     res.json({ success: true });

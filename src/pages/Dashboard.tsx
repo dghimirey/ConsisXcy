@@ -117,7 +117,7 @@ export default function Dashboard() {
             <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-app-accent shrink-0" />
             <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Current Streak</h3>
           </div>
-          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-app-text-p tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
+          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
             {userGlobalStreaks.current} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
           </p>
           <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
@@ -130,7 +130,7 @@ export default function Dashboard() {
              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
             <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Longest Streak</h3>
           </div>
-          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-app-text-p tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
+          <p className="text-3xl sm:text-5xl md:text-6xl font-display font-bold text-white tracking-tight relative z-10 flex items-baseline gap-1.5 sm:gap-2">
             {userGlobalStreaks.longest} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
           </p>
           <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
@@ -142,7 +142,7 @@ export default function Dashboard() {
       <header className="mb-6 md:mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold mb-1.5 md:mb-2 tracking-tight text-app-text-p flex justify-between items-center">
+            <h1 className="text-2xl md:text-3xl font-display font-bold mb-1.5 md:mb-2 tracking-tight text-white flex justify-between items-center">
               Today's Plan
             </h1>
             <p className="text-app-text-s font-mono text-xs md:text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
@@ -166,7 +166,7 @@ export default function Dashboard() {
             return (
               <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-5 md:p-6 flex flex-col gap-3 md:gap-4">
                 <div className="flex justify-between items-center border-b border-app-border/50 pb-3 md:pb-4 mb-2">
-                  <h2 className="text-lg md:text-xl font-display font-medium text-app-text-p truncate pr-2">{section.name}</h2>
+                  <h2 className="text-lg md:text-xl font-display font-medium text-white truncate pr-2">{section.name}</h2>
                   <span className="text-[10px] md:text-sm font-mono text-app-text-s tracking-wide whitespace-nowrap">
                     {completedCount}/{totalCount} Completed
                   </span>
@@ -226,7 +226,7 @@ export default function Dashboard() {
                             </button>
                             
                             <div className="flex flex-col gap-0.5 flex-1 select-none overflow-hidden">
-                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate ${isCompleted ? 'text-app-text-p' : 'text-app-text-p group-hover:text-emerald-400'}`}>
+                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate ${isCompleted ? 'text-white' : 'text-white group-hover:text-emerald-400'}`}>
                                     {routine.name}
                                 </h3>
                                 <div className="flex max-w-full overflow-x-auto hide-scrollbar">

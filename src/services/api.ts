@@ -12,7 +12,10 @@ export const createRoutine = async (data: Partial<Routine>): Promise<Routine> =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Failed to create routine');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create routine');
+  }
   return res.json();
 };
 
@@ -22,13 +25,19 @@ export const updateRoutine = async (id: string, data: Partial<Routine>): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Failed to update routine');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update routine');
+  }
   return res.json();
 };
 
 export const deleteRoutine = async (id: string): Promise<void> => {
   const res = await fetch(`/api/routines/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete routine');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete routine');
+  }
 };
 
 export const fetchCompletions = async (): Promise<Completion[]> => {
@@ -71,7 +80,10 @@ export const createSection = async (name: string): Promise<any> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name })
   });
-  if (!res.ok) throw new Error('Failed to create section');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create section');
+  }
   return res.json();
 };
 
@@ -81,13 +93,19 @@ export const updateSection = async (id: string, name: string): Promise<any> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name })
   });
-  if (!res.ok) throw new Error('Failed to update section');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update section');
+  }
   return res.json();
 };
 
 export const deleteSection = async (id: string): Promise<void> => {
   const res = await fetch(`/api/sections/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete section');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete section');
+  }
 };
 
 export const fetchCategories = async (): Promise<any[]> => {
@@ -102,7 +120,10 @@ export const createCategory = async (data: { name: string, sectionId: string, sc
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Failed to create category');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create category');
+  }
   return res.json();
 };
 
@@ -112,12 +133,18 @@ export const updateCategory = async (id: string, data: { name: string, sectionId
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  if (!res.ok) throw new Error('Failed to update category');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update category');
+  }
   return res.json();
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
   const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete category');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete category');
+  }
 };
 

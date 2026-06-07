@@ -23,10 +23,12 @@ export default function RoutinesPage() {
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [editingSection, setEditingSection] = useState<Partial<Section> | null>(null);
   
+  const [saveErrors, setSaveErrors] = useState<Record<string, string | null>>({});
+
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const {
-    updateRoutineMutation, createRoutineMutation,
+    updateRoutineMutation, createRoutineMutation, deleteRoutineMutation,
     updateCategoryMutation, createCategoryMutation, deleteCategoryMutation,
     updateSectionMutation, createSectionMutation, deleteSectionMutation
   } = useManagementMutations();
@@ -173,24 +175,42 @@ export default function RoutinesPage() {
 
       <Modal 
         isOpen={!!editingSection} 
-        onClose={() => setEditingSection(null)} 
+        onClose={() => { setEditingSection(null); setSaveErrors(p => ({...p, section: null})); }} 
         title={editingSection?.id ? 'Edit Section' : 'New Section'}
         footer={
-          <>
-            <button onClick={() => setEditingSection(null)} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
-            <button 
-              onClick={() => {
-                if (editingSection?.id) updateSectionMutation.mutate({ id: editingSection.id, name: editingSection.name || '' }, { onSuccess: () => setEditingSection(null) });
-                else createSectionMutation.mutate(editingSection?.name || '', { onSuccess: () => setEditingSection(null) });
-              }} 
-              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
-            >
-              Save Section
-            </button>
-          </>
+          <div className="flex w-full justify-between items-center">
+            {editingSection?.id ? (
+              <button 
+                onClick={() => {
+                  deleteSectionMutation.mutate(editingSection.id as string, { onSuccess: () => { setEditingSection(null); setSaveErrors(p => ({...p, section: null})); } });
+                }}
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingSection(null); setSaveErrors(p => ({...p, section: null})); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+              <button 
+                onClick={() => {
+                  if (!editingSection?.name) return;
+                  setSaveErrors(p => ({...p, section: null}));
+                  const onSuccess = () => { setEditingSection(null); setSaveErrors(p => ({...p, section: null})); };
+                  const onError = (e: any) => setSaveErrors(p => ({...p, section: e.message || 'Failed to save section'}));
+                  if (editingSection?.id) updateSectionMutation.mutate({ id: editingSection.id, name: editingSection.name }, { onSuccess, onError });
+                  else createSectionMutation.mutate(editingSection.name, { onSuccess, onError });
+                }} 
+                disabled={!editingSection?.name || createSectionMutation.isPending || updateSectionMutation.isPending}
+                className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {(createSectionMutation.isPending || updateSectionMutation.isPending) ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         }
       >
         <div>
+          {saveErrors.section && <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm">{saveErrors.section}</div>}
           <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Section Name</label>
           <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingSection?.name || ''} onChange={e => setEditingSection((s: any) => ({...s, name: e.target.value}))} placeholder="e.g. Fitness, Study, Deep Work" />
         </div>
@@ -198,24 +218,42 @@ export default function RoutinesPage() {
 
       <Modal 
         isOpen={!!editingCategory} 
-        onClose={() => setEditingCategory(null)} 
+        onClose={() => { setEditingCategory(null); setSaveErrors(p => ({...p, category: null})); }} 
         title={editingCategory?.id ? 'Edit Category' : 'New Category'}
         footer={
-          <>
-            <button onClick={() => setEditingCategory(null)} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
-            <button 
-              onClick={() => {
-                if (editingCategory?.id) updateCategoryMutation.mutate({ id: editingCategory.id, data: editingCategory }, { onSuccess: () => setEditingCategory(null) });
-                else createCategoryMutation.mutate(editingCategory, { onSuccess: () => setEditingCategory(null) });
-              }} 
-              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
-            >
-              Save Category
-            </button>
-          </>
+          <div className="flex w-full justify-between items-center">
+            {editingCategory?.id ? (
+              <button 
+                onClick={() => {
+                  deleteCategoryMutation.mutate(editingCategory.id as string, { onSuccess: () => { setEditingCategory(null); setSaveErrors(p => ({...p, category: null})); } });
+                }}
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingCategory(null); setSaveErrors(p => ({...p, category: null})); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+              <button 
+                onClick={() => {
+                  if (!editingCategory?.name || !editingCategory?.sectionId) return;
+                  setSaveErrors(p => ({...p, category: null}));
+                  const onSuccess = () => { setEditingCategory(null); setSaveErrors(p => ({...p, category: null})); };
+                  const onError = (e: any) => setSaveErrors(p => ({...p, category: e.message || 'Failed to save category'}));
+                  if (editingCategory?.id) updateCategoryMutation.mutate({ id: editingCategory.id, data: editingCategory }, { onSuccess, onError });
+                  else createCategoryMutation.mutate(editingCategory, { onSuccess, onError });
+                }} 
+                disabled={!editingCategory?.name || !editingCategory?.sectionId || createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {(createCategoryMutation.isPending || updateCategoryMutation.isPending) ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         }
       >
         <div className="space-y-6">
+          {saveErrors.category && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm mb-2">{saveErrors.category}</div>}
           <div>
             <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Category Name</label>
             <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingCategory?.name || ''} onChange={e => setEditingCategory((c: any) => ({...c, name: e.target.value}))} placeholder="e.g. Workout, Physics" />
@@ -255,24 +293,42 @@ export default function RoutinesPage() {
 
       <Modal 
         isOpen={!!editingRoutine} 
-        onClose={() => { setEditingRoutine(null); setShowAdvanced(false); }} 
+        onClose={() => { setEditingRoutine(null); setShowAdvanced(false); setSaveErrors(p => ({...p, routine: null})); }} 
         title={editingRoutine?.id ? 'Edit Routine' : 'New Routine'}
         footer={
-          <>
-            <button onClick={() => { setEditingRoutine(null); setShowAdvanced(false); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
-            <button 
-              onClick={() => {
-                if (editingRoutine?.id) updateRoutineMutation.mutate({ id: editingRoutine.id, data: editingRoutine }, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
-                else createRoutineMutation.mutate(editingRoutine, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); } });
-              }} 
-              className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm"
-            >
-              Save Routine
-            </button>
-          </>
+          <div className="flex w-full justify-between items-center">
+            {editingRoutine?.id ? (
+              <button 
+                onClick={() => {
+                  deleteRoutineMutation.mutate(editingRoutine.id as string, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); setSaveErrors(p => ({...p, routine: null})); } });
+                }}
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingRoutine(null); setShowAdvanced(false); setSaveErrors(p => ({...p, routine: null})); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+              <button 
+                onClick={() => {
+                  if (!editingRoutine?.name || !editingRoutine?.categoryId || editingRoutine.targetValue === undefined || Number.isNaN(editingRoutine.targetValue)) return;
+                  setSaveErrors(p => ({...p, routine: null}));
+                  const onSuccess = () => { setEditingRoutine(null); setShowAdvanced(false); setSaveErrors(p => ({...p, routine: null})); };
+                  const onError = (e: any) => setSaveErrors(p => ({...p, routine: e.message || 'Failed to save routine'}));
+                  if (editingRoutine?.id) updateRoutineMutation.mutate({ id: editingRoutine.id, data: editingRoutine }, { onSuccess, onError });
+                  else createRoutineMutation.mutate(editingRoutine, { onSuccess, onError });
+                }} 
+                disabled={!editingRoutine?.name || !editingRoutine?.categoryId || editingRoutine.targetValue === undefined || Number.isNaN(editingRoutine.targetValue) || createRoutineMutation.isPending || updateRoutineMutation.isPending}
+                className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {(createRoutineMutation.isPending || updateRoutineMutation.isPending) ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         }
       >
         <div className="space-y-6">
+          {saveErrors.routine && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm mb-2">{saveErrors.routine}</div>}
           <div>
             <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Routine Name</label>
             <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.name || ''} onChange={e => setEditingRoutine((r: any) => ({...r, name: e.target.value}))} placeholder="e.g. 50 Pushups" />
