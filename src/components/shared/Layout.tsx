@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, LineChart, LogOut, Activity, ChevronLeft, ChevronRight, UserCircle } from 'lucide-react';
+import { LayoutDashboard, ListTodo, LogOut, Activity, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { checkAuth } from '../../services/api';
 import { useEffect, useState } from 'react';
@@ -43,6 +43,10 @@ export default function Layout() {
             <ListTodo className="w-5 h-5 shrink-0" />
             {!isCollapsed && <span>Routines</span>}
           </NavLink>
+          <NavLink to="/trash" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Trash">
+            <Trash2 className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Trash</span>}
+          </NavLink>
         </nav>
         <div className={`mt-auto w-full px-4 flex flex-col gap-2`}>
             <button onClick={handleLogout} className={`flex items-center ${isCollapsed ? 'justify-center px-0 cursor-pointer' : 'gap-3 px-4 cursor-pointer'} w-full py-3 rounded-xl text-app-text-s hover:text-rose-400 hover:bg-rose-500/10 transition-colors`} title="Logout">
@@ -65,6 +69,10 @@ export default function Layout() {
         <NavLink to="/routines" className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive ? 'text-app-accent' : 'text-app-text-s'}`}>
           <ListTodo className="w-5 h-5" />
           <span className="text-[10px] uppercase font-mono tracking-wider">Routines</span>
+        </NavLink>
+        <NavLink to="/trash" className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive ? 'text-app-accent' : 'text-app-text-s'}`}>
+          <Trash2 className="w-5 h-5" />
+          <span className="text-[10px] uppercase font-mono tracking-wider">Trash</span>
         </NavLink>
       </nav>
     </div>

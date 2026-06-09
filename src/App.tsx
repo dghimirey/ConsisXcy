@@ -6,11 +6,14 @@
 import { Suspense, lazy } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Layout from './components/shared/Layout';
 
 import Dashboard from './pages/Dashboard';
 import RoutinesPage from './pages/RoutinesPage';
 import Login from './pages/Login';
+
+import TrashPage from './pages/TrashPage';
 
 const queryClient = new QueryClient();
 
@@ -24,11 +27,29 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="routines" element={<RoutinesPage />} />
+              <Route path="trash" element={<TrashPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{
+          style: {
+            background: '#1a1a1c',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+          },
+          success: {
+            iconTheme: { primary: '#10b981', secondary: '#1a1a1c' }
+          },
+          error: {
+            iconTheme: { primary: '#f43f5e', secondary: '#1a1a1c' }
+          }
+        }} 
+      />
     </QueryClientProvider>
   );
 }

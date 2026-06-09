@@ -129,7 +129,7 @@ app.get('/api/auth/me', authenticate, async (req: express.Request, res: express.
 app.get('/api/sections', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const sections = await sql`SELECT * FROM "Section" ORDER BY name ASC`;
+    const sections = await sql`SELECT * FROM "Section" WHERE "deletedAt" IS NULL ORDER BY name ASC`;
     res.json(sections);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -172,17 +172,21 @@ app.put('/api/sections/:id', authenticate, async (req: express.Request, res: exp
 app.delete('/api/sections/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
+    const sectionId = req.params.id;
     
-    // First, find all categories in this section
-    const cats = await sql`SELECT id FROM "Category" WHERE "sectionId" = ${req.params.id}`;
-    for (const cat of cats) {
-      // Unlink routines
-      await sql`UPDATE "Routine" SET category = 'Uncategorized', "categoryId" = NULL WHERE "categoryId" = ${cat.id}`;
-      // Delete category
-      await sql`DELETE FROM "Category" WHERE id = ${cat.id}`;
+    // Soft delete section
+    await sql`UPDATE "Section" SET "deletedAt" = NOW() WHERE id = ${sectionId}`;
+    
+    // Find and soft delete categories and their routines
+    const cats = await sql`SELECT id FROM "Category" WHERE "sectionId" = ${sectionId} AND "deletedAt" IS NULL`;
+    if (cats.length > 0) {
+      const catIds = cats.map(c => c.id);
+      for (const id of catIds) {
+          await sql`UPDATE "Category" SET "deletedAt" = NOW() WHERE id = ${id}`;
+          await sql`UPDATE "Routine" SET "deletedAt" = NOW() WHERE "categoryId" = ${id} AND "deletedAt" IS NULL`;
+      }
     }
     
-    await sql`DELETE FROM "Section" WHERE id = ${req.params.id}`;
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -192,7 +196,7 @@ app.delete('/api/sections/:id', authenticate, async (req: express.Request, res: 
 app.get('/api/routines', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const routines = await sql`SELECT * FROM "Routine" ORDER BY "createdAt" DESC`;
+    const routines = await sql`SELECT * FROM "Routine" WHERE "deletedAt" IS NULL ORDER BY "createdAt" DESC`;
     res.json(routines);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -265,8 +269,7 @@ app.put('/api/routines/:id', authenticate, async (req: express.Request, res: exp
 app.delete('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    await sql`DELETE FROM "Completion" WHERE "routineId" = ${req.params.id}`;
-    await sql`DELETE FROM "Routine" WHERE id = ${req.params.id}`;
+    await sql`UPDATE "Routine" SET "deletedAt" = NOW() WHERE id = ${req.params.id}`;
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -350,7 +353,7 @@ app.get('/api/streaks', authenticate, async (req: express.Request, res: express.
 app.get('/api/categories', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const categories = await sql`SELECT * FROM "Category" ORDER BY name ASC`;
+    const categories = await sql`SELECT * FROM "Category" WHERE "deletedAt" IS NULL ORDER BY name ASC`;
     res.json(categories);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -403,11 +406,115 @@ app.put('/api/categories/:id', authenticate, async (req: express.Request, res: e
 app.delete('/api/categories/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const oldCat = await sql`SELECT name FROM "Category" WHERE id = ${req.params.id}`;
-    if (oldCat.length > 0 && oldCat[0].name) {
-      await sql`UPDATE "Routine" SET category = 'Uncategorized', "categoryId" = NULL WHERE "categoryId" = ${req.params.id}`;
+    await sql`UPDATE "Category" SET "deletedAt" = NOW() WHERE id = ${req.params.id}`;
+    await sql`UPDATE "Routine" SET "deletedAt" = NOW() WHERE "categoryId" = ${req.params.id} AND "deletedAt" IS NULL`;
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/trash', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    // Auto-cleanup expired trash
+    try {
+      const expiredRoutines = await sql`SELECT id FROM "Routine" WHERE "deletedAt" < (NOW() - INTERVAL '30 days')`;
+      for(const r of expiredRoutines) {
+        await sql`DELETE FROM "Completion" WHERE "routineId" = ${r.id}`;
+        await sql`DELETE FROM "Streak" WHERE "routineId" = ${r.id}`;
+        await sql`DELETE FROM "Routine" WHERE id = ${r.id}`;
+      }
+      const expiredCategories = await sql`SELECT id FROM "Category" WHERE "deletedAt" < (NOW() - INTERVAL '30 days')`;
+      for (const c of expiredCategories) {
+        await sql`DELETE FROM "Category" WHERE id = ${c.id}`;
+      }
+      await sql`DELETE FROM "Section" WHERE "deletedAt" < (NOW() - INTERVAL '30 days')`;
+    } catch(e) { console.error("Auto-cleanup error", e); }
+
+    const items = await sql`
+      SELECT id, name, 'Routine' as type, "deletedAt" FROM "Routine" WHERE "deletedAt" IS NOT NULL
+      UNION ALL
+      SELECT id, name, 'Category' as type, "deletedAt" FROM "Category" WHERE "deletedAt" IS NOT NULL
+      UNION ALL
+      SELECT id, name, 'Section' as type, "deletedAt" FROM "Section" WHERE "deletedAt" IS NOT NULL
+      ORDER BY "deletedAt" DESC
+    `;
+    res.json(items);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/trash/restore', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { items } = req.body; // {id, type}[]
+    for (const item of items) {
+      if (item.type === 'Routine') {
+        await sql`UPDATE "Routine" SET "deletedAt" = NULL WHERE id = ${item.id}`;
+        const routines = await sql`SELECT "categoryId" FROM "Routine" WHERE id = ${item.id}`;
+        if (routines[0]?.categoryId) {
+          await sql`UPDATE "Category" SET "deletedAt" = NULL WHERE id = ${routines[0].categoryId}`;
+          const cats = await sql`SELECT "sectionId" FROM "Category" WHERE id = ${routines[0].categoryId}`;
+          if (cats[0]?.sectionId) {
+            await sql`UPDATE "Section" SET "deletedAt" = NULL WHERE id = ${cats[0].sectionId}`;
+          }
+        }
+      } else if (item.type === 'Category') {
+        await sql`UPDATE "Category" SET "deletedAt" = NULL WHERE id = ${item.id}`;
+        const cats = await sql`SELECT "sectionId" FROM "Category" WHERE id = ${item.id}`;
+        if (cats[0]?.sectionId) {
+          await sql`UPDATE "Section" SET "deletedAt" = NULL WHERE id = ${cats[0].sectionId}`;
+        }
+        await sql`UPDATE "Routine" SET "deletedAt" = NULL WHERE "categoryId" = ${item.id}`;
+      } else if (item.type === 'Section') {
+        await sql`UPDATE "Section" SET "deletedAt" = NULL WHERE id = ${item.id}`;
+        const cats = await sql`SELECT id FROM "Category" WHERE "sectionId" = ${item.id}`;
+        if (cats.length > 0) {
+           const catIds = cats.map(c => c.id);
+           await sql`UPDATE "Category" SET "deletedAt" = NULL WHERE id = ANY(${catIds})`;
+           await sql`UPDATE "Routine" SET "deletedAt" = NULL WHERE "categoryId" = ANY(${catIds})`;
+        }
+      }
     }
-    await sql`DELETE FROM "Category" WHERE id = ${req.params.id}`;
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/trash/delete', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { items } = req.body;
+    for (const item of items) {
+      if (item.type === 'Routine') {
+        await sql`DELETE FROM "Completion" WHERE "routineId" = ${item.id}`;
+        await sql`DELETE FROM "Streak" WHERE "routineId" = ${item.id}`;
+        await sql`DELETE FROM "Routine" WHERE id = ${item.id}`;
+      } else if (item.type === 'Category') {
+        const routines = await sql`SELECT id FROM "Routine" WHERE "categoryId" = ${item.id}`;
+        for(const r of routines) {
+            await sql`DELETE FROM "Completion" WHERE "routineId" = ${r.id}`;
+            await sql`DELETE FROM "Streak" WHERE "routineId" = ${r.id}`;
+        }
+        await sql`DELETE FROM "Routine" WHERE "categoryId" = ${item.id}`;
+        await sql`DELETE FROM "Category" WHERE id = ${item.id}`;
+      } else if (item.type === 'Section') {
+        const cats = await sql`SELECT id FROM "Category" WHERE "sectionId" = ${item.id}`;
+        for(const c of cats) {
+            const routines = await sql`SELECT id FROM "Routine" WHERE "categoryId" = ${c.id}`;
+            for(const r of routines) {
+                await sql`DELETE FROM "Completion" WHERE "routineId" = ${r.id}`;
+                await sql`DELETE FROM "Streak" WHERE "routineId" = ${r.id}`;
+            }
+            await sql`DELETE FROM "Routine" WHERE "categoryId" = ${c.id}`;
+        }
+        await sql`DELETE FROM "Category" WHERE "sectionId" = ${item.id}`;
+        await sql`DELETE FROM "Section" WHERE id = ${item.id}`;
+      }
+    }
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

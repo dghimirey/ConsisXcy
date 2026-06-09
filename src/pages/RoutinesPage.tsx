@@ -8,6 +8,7 @@ import { formatTarget } from '../lib/utils';
 import { Modal } from '../components/Modal';
 import { useManagementMutations } from '../hooks/useManagementMutations';
 import { RoutineItem } from '../components/RoutineItem';
+import toast from 'react-hot-toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -22,6 +23,7 @@ export default function RoutinesPage() {
   const [editingRoutine, setEditingRoutine] = useState<Partial<Routine> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [editingSection, setEditingSection] = useState<Partial<Section> | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'Routine' | 'Category' | 'Section'} | null>(null);
   
   const [saveErrors, setSaveErrors] = useState<Record<string, string | null>>({});
 
@@ -99,7 +101,7 @@ export default function RoutinesPage() {
                 <button onClick={(e) => { e.stopPropagation(); setEditingSection(section); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-white rounded-xl hover:bg-app-glass transition-colors">
                   <Edit2 className="w-5 h-5" />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); deleteSectionMutation.mutate(section.id); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors">
+                <button onClick={(e) => { e.stopPropagation(); setItemToDelete({id: section.id, type: 'Section'}); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors">
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
@@ -140,7 +142,7 @@ export default function RoutinesPage() {
                             <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                               <div className="p-2.5 md:p-4 bg-app-surface/20 space-y-2.5 md:space-y-3 border-t border-app-border/40 pl-3 md:pl-10">
                                 {category.routines.map((routine: Routine) => (
-                                  <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} />
+                                  <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} onDelete={(r) => setItemToDelete({id: r.id, type: 'Routine'})} />
                                 ))}
                                 <button 
                                   onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', isActive: true, autoImprovement: false })} 
@@ -182,7 +184,7 @@ export default function RoutinesPage() {
             {editingSection?.id ? (
               <button 
                 onClick={() => {
-                  deleteSectionMutation.mutate(editingSection.id as string, { onSuccess: () => { setEditingSection(null); setSaveErrors(p => ({...p, section: null})); } });
+                  setItemToDelete({id: editingSection.id as string, type: 'Section'});
                 }}
                 className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
               >
@@ -225,7 +227,7 @@ export default function RoutinesPage() {
             {editingCategory?.id ? (
               <button 
                 onClick={() => {
-                  deleteCategoryMutation.mutate(editingCategory.id as string, { onSuccess: () => { setEditingCategory(null); setSaveErrors(p => ({...p, category: null})); } });
+                  setItemToDelete({id: editingCategory.id as string, type: 'Category'});
                 }}
                 className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
               >
@@ -300,7 +302,7 @@ export default function RoutinesPage() {
             {editingRoutine?.id ? (
               <button 
                 onClick={() => {
-                  deleteRoutineMutation.mutate(editingRoutine.id as string, { onSuccess: () => { setEditingRoutine(null); setShowAdvanced(false); setSaveErrors(p => ({...p, routine: null})); } });
+                  setItemToDelete({id: editingRoutine.id as string, type: 'Routine'});
                 }}
                 className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
               >
@@ -390,6 +392,54 @@ export default function RoutinesPage() {
               )}
             </AnimatePresence>
           </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={!!itemToDelete}
+        onClose={() => setItemToDelete(null)}
+        title="Confirm Deletion"
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <button 
+               onClick={() => setItemToDelete(null)} 
+               className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors"
+            >
+               Cancel
+            </button>
+            <button 
+               onClick={() => {
+                 if (!itemToDelete) return;
+                 const successCallback = () => {
+                   toast.success('Moved to trash');
+                   setItemToDelete(null);
+                   setEditingRoutine(null);
+                   setEditingCategory(null);
+                   setEditingSection(null);
+                 };
+                 const errorCallback = (err: any) => {
+                   toast.error(err.message || 'Failed to delete');
+                 };
+                 
+                 if (itemToDelete.type === 'Routine') {
+                   deleteRoutineMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
+                 } else if (itemToDelete.type === 'Category') {
+                   deleteCategoryMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
+                 } else if (itemToDelete.type === 'Section') {
+                   deleteSectionMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
+                 }
+               }} 
+               disabled={deleteRoutineMutation.isPending || deleteCategoryMutation.isPending || deleteSectionMutation.isPending}
+               className="px-6 py-2.5 min-h-[44px] text-sm bg-rose-500/10 text-rose-400 font-medium rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm disabled:opacity-50"
+            >
+               Delete
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+           <div className="p-4 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-xl text-sm leading-relaxed">
+             Are you sure you want to delete this item? It will be moved to Trash and permanently deleted after 30 days. You can restore it anytime before then.
+           </div>
         </div>
       </Modal>
     </div>

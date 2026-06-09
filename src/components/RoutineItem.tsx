@@ -8,10 +8,11 @@ import { useManagementMutations } from '../hooks/useManagementMutations';
 interface RoutineItemProps {
   routine: Routine;
   onEdit: (routine: Routine) => void;
+  onDelete: (routine: Routine) => void;
 }
 
-export function RoutineItem({ routine, onEdit }: RoutineItemProps) {
-  const { updateRoutineMutation, deleteRoutineMutation } = useManagementMutations();
+export function RoutineItem({ routine, onEdit, onDelete }: RoutineItemProps) {
+  const { updateRoutineMutation } = useManagementMutations();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -65,7 +66,7 @@ export function RoutineItem({ routine, onEdit }: RoutineItemProps) {
                   <button 
                     onClick={() => {
                       setMenuOpen(false);
-                      deleteRoutineMutation.mutate(routine.id);
+                      onDelete(routine);
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors text-left"
                   >
