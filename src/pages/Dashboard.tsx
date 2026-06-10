@@ -2,35 +2,47 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { Check, Flame, Trophy } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections } from '../services/api';
 import { Routine, Completion, Streak, Category, Section } from '../types';
 import { HabitHeatmap } from '../components/HabitHeatmap';
+import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { formatTarget } from '../lib/utils';
+import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak } from '../lib/consistency';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
-  const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
-  const { data: streaks = [] } = useQuery({ queryKey: ['streaks'], queryFn: fetchStreaks });
-  const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
-  const { data: sectionsData = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
+    const [selectedSection, setSelectedSection] = useState<string>('All');
 
-  // Dashboard behavior: Display only categories scheduled for today
-  const currentDayIndex = new Date().getDay(); // 0 is Sunday
-  
-  const todayCategories = categoriesData.filter((c: Category) => {
-    return c.schedule && Array.isArray(c.schedule) && c.schedule.includes(currentDayIndex);
-  });
-  const todayCategoryIds = todayCategories.map((c: Category) => c.id);
+    const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
+    const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
+    const { data: streaks = [] } = useQuery({ queryKey: ['streaks'], queryFn: fetchStreaks });
+    const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+    const { data: sectionsData = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
 
-  const activeRoutines = routines.filter((r: Routine) => r.isActive && r.categoryId && todayCategoryIds.includes(r.categoryId));
+    // Dashboard behavior: Display only categories scheduled for today
+    const currentDayIndex = new Date().getDay(); // 0 is Sunday
+    
+    const todayCategories = categoriesData.filter((c: Category) => {
+      return c.schedule && Array.isArray(c.schedule) && c.schedule.includes(currentDayIndex);
+    });
+    const todayCategoryIds = todayCategories.map((c: Category) => c.id);
+    const todaySectionIds = Array.from(new Set(todayCategories.map((c: Category) => c.sectionId)));
+    const todaySections = sectionsData.filter((s: Section) => todaySectionIds.includes(s.id));
 
-  let filteredRoutines = [...activeRoutines];
+    const activeRoutines = routines.filter((r: Routine) => {
+       const cat = categoriesData.find((c: Category) => c.id === r.categoryId);
+       return r.isActive && 
+       r.categoryId && 
+       todayCategoryIds.includes(r.categoryId) &&
+       (selectedSection === 'All' || (cat && cat.sectionId === selectedSection));
+    });
+
+    let filteredRoutines = [...activeRoutines];
 
   const routinesBySection = sectionsData.reduce((acc: Record<string, any>, section: Section) => {
     acc[section.id] = {
@@ -98,6 +110,10 @@ export default function Dashboard() {
 
   const getDayStatus = (routineId: string) => {
     return completions.find(c => c.routineId === routineId && new Date(c.date).toISOString().split('T')[0] === todayStr)?.status;
+  };
+
+  const getDayCompletionValue = (routineId: string) => {
+    return completions.find(c => c.routineId === routineId && new Date(c.date).toISOString().split('T')[0] === todayStr)?.value || 0;
   };
 
   const getStreak = (routineId: string) => {
@@ -189,6 +205,25 @@ export default function Dashboard() {
             <p className="text-app-text-s font-mono text-xs md:text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
           </div>
         </div>
+        {todaySections.length > 0 && (
+          <div className="mt-6 flex flex-wrap gap-2">
+             <button
+                onClick={() => setSelectedSection('All')}
+                className={`px-3 py-1.5 rounded-full text-xs font-mono tracking-wide transition-colors border ${selectedSection === 'All' ? 'bg-white text-black border-white' : 'bg-app-surface border-app-border text-app-text-s hover:text-white hover:border-app-text-s/50'}`}
+             >
+                All
+             </button>
+             {todaySections.map((sec: Section) => (
+                <button
+                   key={sec.id}
+                   onClick={() => setSelectedSection(sec.id)}
+                   className={`px-3 py-1.5 rounded-full text-xs font-mono tracking-wide transition-colors border ${selectedSection === sec.id ? 'bg-app-accent border-app-accent text-white' : 'bg-app-surface border-app-border text-app-text-s hover:text-white hover:border-app-text-s/50'}`}
+                >
+                   {sec.name}
+                </button>
+             ))}
+          </div>
+        )}
       </header>
 
       <div className="space-y-6 mb-8 md:mb-12">
@@ -233,15 +268,20 @@ export default function Dashboard() {
                                  const target = e.target as HTMLElement;
                                  if (target.closest('button')) return;
                                  
+                                 const totalTarget = (routine.sets || 1) * routine.targetValue;
                                  const newStatus = isCompleted ? 'MISSED' : 'COMPLETED';
-                                 mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: routine.targetValue, value: newStatus === 'COMPLETED' ? routine.targetValue : 0 });
-                                 if (newStatus === 'COMPLETED') {
+                                 const newVal = newStatus === 'COMPLETED' ? totalTarget : 0;
+                                 
+                                 mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
+                                 if (newStatus === 'COMPLETED' && !isCompleted) {
                                      // Check if this completes the section
                                      const completesSection = sectionRoutines.every((r: any) => 
                                          r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
                                      );
                                      if (completesSection) {
                                          confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                     } else {
+                                         confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
                                      }
                                  }
                               }}
@@ -249,15 +289,20 @@ export default function Dashboard() {
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    const totalTarget = (routine.sets || 1) * routine.targetValue;
                                     const newStatus = isCompleted ? 'MISSED' : 'COMPLETED';
-                                    mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: routine.targetValue, value: newStatus === 'COMPLETED' ? routine.targetValue : 0 });
+                                    const newVal = newStatus === 'COMPLETED' ? totalTarget : 0;
                                     
-                                    if (newStatus === 'COMPLETED') {
+                                    mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
+                                    
+                                    if (newStatus === 'COMPLETED' && !isCompleted) {
                                         const completesSection = sectionRoutines.every((r: any) => 
                                             r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
                                         );
                                         if (completesSection) {
                                             confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                        } else {
+                                            confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
                                         }
                                     }
                                 }}
@@ -267,7 +312,11 @@ export default function Dashboard() {
                             </button>
                             
                             <div className="flex flex-col gap-0.5 flex-1 select-none overflow-hidden">
-                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate ${isCompleted ? 'text-white' : 'text-white group-hover:text-emerald-400'}`}>
+                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate flex items-center gap-2 ${isCompleted ? 'text-white' : 'text-white group-hover:text-emerald-400'}`}>
+                                    {(() => {
+                                       const IconComponent = getIcon(routine.icon);
+                                       return <IconComponent className={`w-4 h-4 md:w-5 md:h-5 ${isCompleted ? 'text-emerald-400/80' : 'text-app-text-s'}`} />;
+                                    })()}
                                     {routine.name}
                                 </h3>
                                 <div className="flex max-w-full overflow-x-auto hide-scrollbar">
@@ -275,6 +324,51 @@ export default function Dashboard() {
                                         <span className="text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md bg-app-surface/60 border border-app-border text-app-text-s tracking-wide uppercase">
                                           {routine.categoryName}
                                         </span>
+                                        {routine.targetValue && routine.targetUnit && (() => {
+                                           const sets = routine.sets || 1;
+                                           const totalTarget = sets * routine.targetValue;
+                                           const currentVal = getDayCompletionValue(routine.id);
+                                           const setsCompleted = Math.floor(currentVal / routine.targetValue);
+                                           const showSetsProgress = sets > 1 && currentVal > 0;
+                                           
+                                           return (
+                                              <span 
+                                                className="text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md bg-app-surface/40 border border-app-border/60 text-app-text-s tracking-wide uppercase flex items-center gap-1 cursor-pointer hover:bg-app-surface hover:text-white transition-colors"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const input = prompt(`Enter progress for ${routine.name} (Target: ${totalTarget} ${routine.targetUnit}):`, currentVal.toString());
+                                                  if (input !== null) {
+                                                      const parsed = parseFloat(input);
+                                                      if (!isNaN(parsed) && parsed >= 0) {
+                                                          const newVal = Math.min(parsed, totalTarget);
+                                                          const newStatus = newVal >= totalTarget ? 'COMPLETED' : (newVal > 0 ? 'PARTIAL' : 'MISSED');
+                                                          mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
+                                                          if (newStatus === 'COMPLETED' && !isCompleted) {
+                                                              const completesSection = sectionRoutines.every((r: any) => 
+                                                                  r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
+                                                              );
+                                                              if (completesSection) {
+                                                                  confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                                              } else {
+                                                                  confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
+                                                              }
+                                                          }
+                                                      }
+                                                  }
+                                                }}
+                                              >
+                                                <span className="opacity-60">Goal:</span>
+                                                <span className={isCompleted ? 'text-emerald-400' : 'text-gray-300'}>
+                                                  {sets > 1 
+                                                     ? (showSetsProgress ? `${setsCompleted} / ${sets}` : `${sets} × ${routine.targetValue}`)
+                                                     : (routine.targetValue > 1 ? `${currentVal}/${routine.targetValue}` : routine.targetValue)}
+                                                </span>
+                                                <span className="opacity-60 lowercase">
+                                                  {sets > 1 && showSetsProgress ? 'sets completed' : routine.targetUnit}
+                                                </span>
+                                              </span>
+                                           );
+                                        })()}
                                         {currentStreak > 0 && (() => {
                                             const milestone = getMilestone(currentStreak);
                                             const progress = Math.min(100, (currentStreak / milestone.target) * 100);
@@ -310,8 +404,9 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="flex justify-center w-full">
-          <HabitHeatmap />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+          <HabitHeatmap section={selectedSection} />
+          <MonthlyTrendsChart section={selectedSection} />
       </div>
     </div>
   );

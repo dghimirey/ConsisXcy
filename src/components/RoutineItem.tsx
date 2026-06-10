@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Routine } from '../types';
 import { formatTarget } from '../lib/utils';
 import { useManagementMutations } from '../hooks/useManagementMutations';
+import { getIcon } from '../lib/icons';
 
 interface RoutineItemProps {
   routine: Routine;
@@ -14,16 +15,22 @@ interface RoutineItemProps {
 export function RoutineItem({ routine, onEdit, onDelete }: RoutineItemProps) {
   const { updateRoutineMutation } = useManagementMutations();
   const [menuOpen, setMenuOpen] = useState(false);
+  const IconComponent = getIcon(routine.icon);
 
   return (
     <div className="bg-app-glass border border-app-border/60 p-3.5 md:p-4 rounded-xl flex items-center justify-between group relative hover:border-app-text-s/30 transition-colors">
       <div className="flex items-center gap-4">
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ${routine.isActive ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-app-border'}`}></div>
-        <div>
-          <p className="text-white font-medium text-sm md:text-base">{routine.name}</p>
-          <p className="text-xs text-app-text-s font-mono tracking-wide mt-0.5">
-            {formatTarget(routine.targetValue)} {routine.targetUnit}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center p-2 rounded-lg bg-app-surface border border-app-border shrink-0">
+             <IconComponent className="w-5 h-5 text-app-text-s" />
+          </div>
+          <div>
+            <p className="text-white font-medium text-sm md:text-base">{routine.name}</p>
+            <p className="text-xs text-app-text-s font-mono tracking-wide mt-0.5">
+              {routine.sets && routine.sets > 1 ? `${routine.sets} × ` : ''}{formatTarget(routine.targetValue)} {routine.targetUnit}
+            </p>
+          </div>
         </div>
       </div>
       

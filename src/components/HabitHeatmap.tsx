@@ -5,7 +5,7 @@ import { fetchCompletions, fetchRoutines, fetchCategories } from '../services/ap
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getDayCompletionStatus } from '../lib/consistency';
 
-export function HabitHeatmap({ category = 'All' }: { category?: string }) {
+export function HabitHeatmap({ section = 'All' }: { section?: string }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
@@ -19,7 +19,7 @@ export function HabitHeatmap({ category = 'All' }: { category?: string }) {
   const prefixDays = Array(startDay).fill(null);
 
   const getDayStatus = (date: dayjs.Dayjs) => {
-    return getDayCompletionStatus(date.format('YYYY-MM-DD'), routines, categories, completions, category);
+    return getDayCompletionStatus(date.format('YYYY-MM-DD'), routines, categories, completions, section);
   };
 
   return (

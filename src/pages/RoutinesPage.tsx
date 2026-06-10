@@ -8,6 +8,7 @@ import { formatTarget } from '../lib/utils';
 import { Modal } from '../components/Modal';
 import { useManagementMutations } from '../hooks/useManagementMutations';
 import { RoutineItem } from '../components/RoutineItem';
+import { IconPicker } from '../components/IconPicker';
 import toast from 'react-hot-toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -145,7 +146,7 @@ export default function RoutinesPage() {
                                   <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} onDelete={(r) => setItemToDelete({id: r.id, type: 'Routine'})} />
                                 ))}
                                 <button 
-                                  onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', isActive: true, autoImprovement: false })} 
+                                  onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', sets: 1, isActive: true, autoImprovement: false })} 
                                   className="w-full flex items-center justify-center gap-2 p-3 text-sm font-medium text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors mt-2 bg-app-surface/10 hover:bg-app-surface/30"
                                 >
                                   <Plus className="w-4 h-4" /> Add Routine
@@ -347,10 +348,21 @@ export default function RoutinesPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Icon</label>
+            <IconPicker
+               value={editingRoutine?.icon}
+               onChange={(icon) => setEditingRoutine((r: any) => ({...r, icon}))}
+            />
+          </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Target</label>
+              <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Sets</label>
+              <input type="number" step="1" min="1" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.sets ?? 1} onChange={e => setEditingRoutine((r: any) => ({...r, sets: parseInt(e.target.value) || 1}))} placeholder="e.g. 3" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Target (per set)</label>
               <input type="number" step="1" min="1" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRoutine?.targetValue ? formatTarget(editingRoutine.targetValue) : ''} onChange={e => setEditingRoutine((r: any) => ({...r, targetValue: parseFloat(e.target.value)}))} placeholder="e.g. 50" />
             </div>
             <div>

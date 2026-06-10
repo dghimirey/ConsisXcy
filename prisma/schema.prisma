@@ -14,6 +14,8 @@ model Routine {
   description     String?
   targetValue     Float
   targetUnit      String
+  sets            Int      @default(1)
+  icon            String?
   isActive        Boolean  @default(true)
   autoImprovement Boolean  @default(false)
   createdAt       DateTime @default(now())

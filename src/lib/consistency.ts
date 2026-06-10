@@ -6,7 +6,7 @@ export function getDayCompletionStatus(
   routines: Routine[], 
   categories: Category[], 
   completions: Completion[],
-  categoryIdFilter: string = 'All'
+  sectionIdFilter: string = 'All'
 ) {
   const date = dayjs(dateStr);
   const dayIndex = date.day(); // 0 is Sunday, 6 is Saturday
@@ -21,7 +21,8 @@ export function getDayCompletionStatus(
 
   // Find routines expected for this day
   const expectedRoutines = routines.filter(r => {
-    if (categoryIdFilter !== 'All' && r.categoryId !== categoryIdFilter) return false;
+    const routineCategory = categories.find(c => c.id === r.categoryId);
+    if (sectionIdFilter !== 'All' && (!routineCategory || routineCategory.sectionId !== sectionIdFilter)) return false;
     if (!r.isActive) return false;
     if (!r.categoryId || !scheduledCategoryIds.includes(r.categoryId)) return false;
     

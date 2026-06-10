@@ -6,6 +6,8 @@ export interface Routine {
   description: string | null;
   targetValue: number;
   targetUnit: string;
+  sets?: number;
+  icon?: string | null;
   isActive: boolean;
   autoImprovement: boolean;
   createdAt: string;
