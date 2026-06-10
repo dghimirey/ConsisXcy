@@ -60,15 +60,20 @@ export function HabitHeatmap({ category = 'All' }: { category?: string }) {
            
            if (status !== 'NONE') {
              if (percentage === 100) {
-               bgClass = 'bg-gradient-to-br from-[#166534] to-[#16A34A] border border-[#16A34A]/60 shadow-[0_0_10px_rgba(22,163,74,0.4),inset_0_1px_rgba(255,255,255,0.2)] hover:shadow-[0_0_15px_rgba(22,163,74,0.6)] z-20';
+               // Deep green for full accomplishment
+               bgClass = 'bg-gradient-to-br from-[#00C853] to-[#00E676] border border-[#69F0AE]/70 shadow-[0_0_12px_rgba(0,200,83,0.6),inset_0_1px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_rgba(0,200,83,0.8)] z-20';
              } else if (percentage >= 75) {
-               bgClass = 'bg-gradient-to-br from-[#064E3B] to-[#047857] border border-[#059669]/50 shadow-[0_0_6px_rgba(4,120,87,0.3)] hover:shadow-[0_0_10px_rgba(4,120,87,0.5)] z-10';
+               // Light green / bright green
+               bgClass = 'bg-gradient-to-br from-[#7CB342] to-[#8BC34A] border border-[#AED581]/60 shadow-[0_0_8px_rgba(139,195,74,0.5)] hover:shadow-[0_0_14px_rgba(139,195,74,0.7)] z-10';
              } else if (percentage >= 50) {
-               bgClass = 'bg-gradient-to-br from-[#78350F] to-[#B45309] border border-[#D97706]/50 shadow-[0_0_6px_rgba(180,83,9,0.3)] hover:shadow-[0_0_10px_rgba(180,83,9,0.5)] z-10';
+               // Yellowish / amber (motivating transition)
+               bgClass = 'bg-gradient-to-br from-[#FFB300] to-[#FFC107] border border-[#FFD54F]/60 shadow-[0_0_8px_rgba(255,193,7,0.5)] hover:shadow-[0_0_14px_rgba(255,193,7,0.7)] z-10';
              } else if (percentage > 0) {
-               bgClass = 'bg-gradient-to-br from-[#7C2D12] to-[#9A3412] border border-[#C2410C]/50 shadow-[0_0_6px_rgba(154,52,18,0.3)] z-10';
+               // Orange / deep orange (warning but still progress)
+               bgClass = 'bg-gradient-to-br from-[#FF6F00] to-[#FF9800] border border-[#FFB74D]/60 shadow-[0_0_6px_rgba(255,152,0,0.45)] hover:shadow-[0_0_12px_rgba(255,152,0,0.65)] z-10';
              } else {
-               bgClass = 'bg-gradient-to-br from-[#450a0a] to-[#7f1d1d] border border-[#991b1b]/50 shadow-[0_0_4px_rgba(153,27,27,0.2)] z-10';
+               // Red for 0% (danger / no progress)
+               bgClass = 'bg-gradient-to-br from-[#C62828] to-[#D32F2F] border border-[#EF9A9A]/50 shadow-[0_0_5px_rgba(211,47,47,0.4)] hover:shadow-[0_0_10px_rgba(211,47,47,0.6)] z-10';
              }
            }
            
