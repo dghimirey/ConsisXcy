@@ -108,36 +108,7 @@ export const deleteSection = async (id: string): Promise<void> => {
   }
 };
 
-export interface TrashItem {
-  id: string;
-  name: string;
-  type: 'Routine' | 'Category' | 'Section';
-  deletedAt: string;
-}
 
-export const fetchTrash = async (): Promise<TrashItem[]> => {
-  const res = await fetch('/api/trash');
-  if (!res.ok) throw new Error('Failed to fetch trash');
-  return res.json();
-};
-
-export const restoreTrashItems = async (items: {id: string, type: string}[]): Promise<void> => {
-  const res = await fetch('/api/trash/restore', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items })
-  });
-  if (!res.ok) throw new Error('Failed to restore items');
-};
-
-export const deleteTrashItems = async (items: {id: string, type: string}[]): Promise<void> => {
-  const res = await fetch('/api/trash/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items })
-  });
-  if (!res.ok) throw new Error('Failed to permanently delete items');
-};
 
 export const fetchCategories = async (): Promise<any[]> => {
   const res = await fetch('/api/categories');

@@ -422,7 +422,7 @@ export default function RoutinesPage() {
                onClick={() => {
                  if (!itemToDelete) return;
                  const successCallback = () => {
-                   toast.success('Moved to trash');
+                   toast.success('Deleted permanently');
                    setItemToDelete(null);
                    setEditingRoutine(null);
                    setEditingCategory(null);
@@ -449,8 +449,8 @@ export default function RoutinesPage() {
         }
       >
         <div className="space-y-4">
-           <div className="p-4 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-xl text-sm leading-relaxed">
-             Are you sure you want to delete this item? It will be moved to Trash and permanently deleted after 30 days. You can restore it anytime before then.
+           <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm leading-relaxed">
+             Are you sure you want to permanently delete this item?
            </div>
         </div>
       </Modal>

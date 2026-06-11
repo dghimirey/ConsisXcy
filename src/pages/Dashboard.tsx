@@ -143,14 +143,24 @@ export default function Dashboard() {
             <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Current Streak</h3>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10">
-            <p className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
+            <motion.p 
+              key={`current-text-${userGlobalStreaks.current}`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
               {userGlobalStreaks.current} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </p>
+            </motion.p>
             {userGlobalStreaks.current > 0 && (() => {
                const milestone = getMilestone(userGlobalStreaks.current);
                const progress = Math.min(100, (userGlobalStreaks.current / milestone.target) * 100);
                return (
-                  <div className={`mb-1 sm:mb-2 flex flex-col gap-1.5 ${milestone.textColor}`}>
+                  <motion.div 
+                      key={`current-badge-${userGlobalStreaks.current}`}
+                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
+                      animate={{ scale: 1, x: 0, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className={`mb-1 sm:mb-2 flex flex-col gap-1.5 ${milestone.textColor}`}>
                       <div className="flex items-center gap-1.5 text-xs font-mono tracking-wide">
                           <span>{milestone.icon}</span> 
                           {milestone.name && <span className="font-semibold">{milestone.name} Goal</span>}
@@ -161,7 +171,7 @@ export default function Dashboard() {
                           </div>
                            <span className="text-[10px] sm:text-xs font-mono opacity-70">{userGlobalStreaks.current}/{milestone.target}</span>
                       </div>
-                  </div>
+                  </motion.div>
                );
             })()}
           </div>
@@ -176,17 +186,27 @@ export default function Dashboard() {
             <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Longest Streak</h3>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10">
-            <p className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
+            <motion.p 
+              key={`longest-text-${userGlobalStreaks.longest}`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
               {userGlobalStreaks.longest} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </p>
+            </motion.p>
             {userGlobalStreaks.longest > 0 && (() => {
                const milestone = getMilestone(userGlobalStreaks.longest);
                return (
-                  <div className={`mb-1 sm:mb-2 flex items-center gap-1.5 px-2 py-1 rounded-md border ${milestone.badgeColor} text-xs font-mono tracking-wide w-fit`}>
+                  <motion.div 
+                      key={`longest-badge-${userGlobalStreaks.longest}`}
+                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
+                      animate={{ scale: 1, x: 0, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className={`mb-1 sm:mb-2 flex items-center gap-1.5 px-2 py-1 rounded-md border ${milestone.badgeColor} text-xs font-mono tracking-wide w-fit`}>
                       <span>{milestone.icon}</span> 
                       {milestone.name && <span className="font-semibold">{milestone.name} Achieved</span>}
                       {!milestone.name && <span className="font-semibold">Started</span>}
-                  </div>
+                  </motion.div>
                );
             })()}
           </div>
@@ -373,7 +393,13 @@ export default function Dashboard() {
                                             const milestone = getMilestone(currentStreak);
                                             const progress = Math.min(100, (currentStreak / milestone.target) * 100);
                                             return (
-                                                <div className={`flex items-center gap-1.5 px-1.5 py-0.5 md:py-1 rounded-md border ${milestone.badgeColor} transition-colors text-[9px] md:text-[10px] font-mono tracking-wide`}>
+                                                <motion.div 
+                                                    key={`streak-badge-${currentStreak}`}
+                                                    initial={{ scale: 0.8, y: 5, opacity: 0 }}
+                                                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                                                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                                                    className={`flex items-center gap-1.5 px-1.5 py-0.5 md:py-1 rounded-md border ${milestone.badgeColor} transition-colors text-[9px] md:text-[10px] font-mono tracking-wide`}
+                                                >
                                                     <div className="flex items-center gap-0.5 md:gap-1">
                                                         <span>{milestone.icon}</span>
                                                         <span className={milestone.textColor}>{currentStreak} <span className="hidden sm:inline">streak</span></span>
@@ -387,7 +413,7 @@ export default function Dashboard() {
                                                         </div>
                                                         <span className="text-[8px] opacity-70 leading-none mt-[1px]">{currentStreak}/{milestone.target}</span>
                                                     </div>
-                                                </div>
+                                                </motion.div>
                                             );
                                         })()}
                                     </div>

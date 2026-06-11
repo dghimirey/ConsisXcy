@@ -13,9 +13,11 @@ import Dashboard from './pages/Dashboard';
 import RoutinesPage from './pages/RoutinesPage';
 import Login from './pages/Login';
 
-import TrashPage from './pages/TrashPage';
+
 
 const queryClient = new QueryClient();
+
+const TimeManagementPage = lazy(() => import('./pages/TimeManagementPage'));
 
 export default function App() {
   return (
@@ -27,7 +29,8 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="routines" element={<RoutinesPage />} />
-              <Route path="trash" element={<TrashPage />} />
+              <Route path="time" element={<TimeManagementPage />} />
+
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
