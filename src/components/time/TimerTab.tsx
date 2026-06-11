@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTimerStore } from '../../store/useTimerStore';
-import { Play, Pause, RotateCcw, Plus, Minus, BellRing } from 'lucide-react';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { Play, Pause, RotateCcw, Plus, Minus, BellRing, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 function formatTime(ms: number) {
@@ -21,6 +22,7 @@ const ALARM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-previ
 
 export function TimerTab() {
   const { isRunning, start, pause, reset, getRemaining, targetDuration, setDuration, remainingTimeAtPause } = useTimerStore();
+  const { soundEnabled, toggleSound } = useSettingsStore();
   const [remaining, setRemaining] = useState(getRemaining());
   const requestRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -52,7 +54,7 @@ export function TimerTab() {
       if (!isFinished) {
          setIsFinished(true);
          pause();
-         if (audioRef.current) audioRef.current.play().catch(console.error);
+         if (audioRef.current && soundEnabled) audioRef.current.play().catch(console.error);
       }
     }
 
@@ -76,7 +78,7 @@ export function TimerTab() {
      setDuration(ms);
      setRemaining(ms);
      setIsFinished(false);
-     if (audioRef.current) {
+     if (audioRef.current && soundEnabled) {
          // Play silently to unlock audio context in Safari/Chrome
          audioRef.current.volume = 0;
          audioRef.current.play().then(() => {
@@ -91,7 +93,7 @@ export function TimerTab() {
 
   const handleStart = () => {
       start();
-      if (audioRef.current && remaining === targetDuration) {
+      if (audioRef.current && remaining === targetDuration && soundEnabled) {
          audioRef.current.volume = 0;
          audioRef.current.play().then(() => {
              audioRef.current?.pause();
@@ -121,13 +123,24 @@ export function TimerTab() {
   // If there's no target set, use the inputs.
   return (
     <div className="w-full flex flex-col items-center justify-center min-h-[400px]">
-      <div className="bg-app-glass border border-app-border rounded-[32px] p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden">
+      <div className="bg-app-glass border border-app-border rounded-[32px] p-6 sm:p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden">
         
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2 sm:gap-4 z-10">
+            <button 
+                onClick={toggleSound}
+                className="p-1.5 sm:p-2 rounded-lg bg-app-surface border border-app-border text-app-text-s hover:text-white hover:border-app-text-s transition-colors"
+                aria-label="Toggle Sound"
+                title={soundEnabled ? "Mute Timer" : "Unmute Timer"}
+            >
+                {soundEnabled ? <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" /> : <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />}
+            </button>
+        </div>
+
         {isFinished ? (
             <motion.div 
                initial={{ scale: 0.9, opacity: 0 }}
                animate={{ scale: 1, opacity: 1 }}
-               className="flex flex-col items-center gap-6"
+               className="flex flex-col items-center gap-6 text-center"
             >
                <div className="w-24 h-24 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center animate-pulse">
                   <BellRing className="w-12 h-12" />
@@ -156,24 +169,24 @@ export function TimerTab() {
                                 </button>
                             ))}
                         </div>
-                        <div className="flex items-center gap-6 text-2xl md:text-4xl font-mono text-white">
+                        <div className="flex items-center gap-2 sm:gap-6 text-xl sm:text-2xl md:text-4xl font-mono text-white">
                             <div className="flex flex-col items-center gap-2">
                                 <button onClick={() => setInputHours(p => Math.min(99, p + 1))} className="p-2 hover:bg-app-surface rounded-lg"><Plus className="w-5 h-5"/></button>
-                                <span className="w-16 text-center">{inputHours.toString().padStart(2, '0')}</span>
+                                <span className="w-12 sm:w-16 text-center">{inputHours.toString().padStart(2, '0')}</span>
                                 <button onClick={() => setInputHours(p => Math.max(0, p - 1))} className="p-2 hover:bg-app-surface rounded-lg"><Minus className="w-5 h-5"/></button>
                                 <span className="text-xs text-app-text-s uppercase tracking-wider font-sans mt-1">hr</span>
                             </div>
                             <span className="text-app-text-s mb-6">:</span>
                             <div className="flex flex-col items-center gap-2">
                                 <button onClick={() => setInputMinutes(p => Math.min(59, p + 1))} className="p-2 hover:bg-app-surface rounded-lg"><Plus className="w-5 h-5"/></button>
-                                <span className="w-16 text-center">{inputMinutes.toString().padStart(2, '0')}</span>
+                                <span className="w-12 sm:w-16 text-center">{inputMinutes.toString().padStart(2, '0')}</span>
                                 <button onClick={() => setInputMinutes(p => Math.max(0, p - 1))} className="p-2 hover:bg-app-surface rounded-lg"><Minus className="w-5 h-5"/></button>
                                 <span className="text-xs text-app-text-s uppercase tracking-wider font-sans mt-1">min</span>
                             </div>
                             <span className="text-app-text-s mb-6">:</span>
                             <div className="flex flex-col items-center gap-2">
                                 <button onClick={() => setInputSeconds(p => Math.min(59, p + 1))} className="p-2 hover:bg-app-surface rounded-lg"><Plus className="w-5 h-5"/></button>
-                                <span className="w-16 text-center">{inputSeconds.toString().padStart(2, '0')}</span>
+                                <span className="w-12 sm:w-16 text-center">{inputSeconds.toString().padStart(2, '0')}</span>
                                 <button onClick={() => setInputSeconds(p => Math.max(0, p - 1))} className="p-2 hover:bg-app-surface rounded-lg"><Minus className="w-5 h-5"/></button>
                                 <span className="text-xs text-app-text-s uppercase tracking-wider font-sans mt-1">sec</span>
                             </div>

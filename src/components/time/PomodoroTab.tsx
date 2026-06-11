@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { usePomodoroStore, PomodoroPhase } from '../../store/usePomodoroStore';
-import { useFocusSessionStore } from '../../store/useFocusSessionStore';
-import { Play, Pause, RotateCcw, FastForward, Settings2 } from 'lucide-react';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { Play, Pause, RotateCcw, FastForward, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function formatTime(ms: number) {
@@ -32,6 +32,8 @@ export function PomodoroTab() {
     setDurations
   } = usePomodoroStore();
 
+  const { soundEnabled, setSoundEnabled } = useSettingsStore();
+
   const [remaining, setRemaining] = useState(getRemaining());
   const requestRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -57,23 +59,9 @@ export function PomodoroTab() {
     setRemaining(currentRemaining);
     
     if (isRunning && currentRemaining <= 0) {
-      if (audioRef.current) {
+      if (audioRef.current && soundEnabled) {
           audioRef.current.volume = 1;
           audioRef.current.play().catch(console.error);
-      }
-      if (phase === 'focus') {
-          // Record the pomodoro focus session
-          useFocusSessionStore.getState().addSession(
-              'Pomodoro Focus',
-              focusDuration,
-              'Pomodoro'
-          );
-          // And mark it completed right away
-          const latestId = useFocusSessionStore.getState().sessions[0]?.id;
-          if (latestId) {
-             useFocusSessionStore.getState().startSession(latestId);
-             useFocusSessionStore.getState().stopSession(true);
-          }
       }
       completePhase();
     }
@@ -95,7 +83,7 @@ export function PomodoroTab() {
 
   const handleStart = () => {
       start();
-      if (audioRef.current) {
+      if (audioRef.current && soundEnabled) {
          audioRef.current.volume = 0;
          audioRef.current.play().then(() => {
              audioRef.current?.pause();
@@ -130,19 +118,19 @@ export function PomodoroTab() {
 
   return (
     <div className="w-full flex flex-col items-center justify-center min-h-[400px]">
-      <div className={`border rounded-[32px] p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden transition-colors duration-500 ${phaseBg}`}>
+      <div className={`border rounded-[32px] p-6 sm:p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden transition-colors duration-500 ${phaseBg}`}>
         
-        <div className="absolute top-6 right-6 flex items-center gap-4">
-            <div className="text-xs font-mono font-medium text-app-text-s flex items-center gap-1">
-               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2 sm:gap-4 z-10">
+            <div className="text-[10px] sm:text-xs font-mono font-medium text-app-text-s flex items-center gap-1">
+               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500"></span>
                {cyclesCompleted} Cycles
             </div>
             <button 
                 onClick={() => setShowSettings(!showSettings)}
-                className="p-2 rounded-lg bg-app-surface border border-app-border text-app-text-s hover:text-white hover:border-app-text-s transition-colors"
+                className="p-1.5 sm:p-2 rounded-lg bg-app-surface border border-app-border text-app-text-s hover:text-white hover:border-app-text-s transition-colors"
                 aria-label="Settings"
             >
-                <Settings2 className="w-5 h-5" />
+                <Settings2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
         </div>
 
@@ -173,6 +161,12 @@ export function PomodoroTab() {
                            <input type="checkbox" checked={autoTransition} onChange={e => setAutoTransition(e.target.checked)} className="accent-app-accent w-4 h-4" />
                            <span className="text-sm text-app-text-s">Auto-transition</span>
                         </label>
+                        <label className="flex items-center gap-3 cursor-pointer mt-2">
+                           <input type="checkbox" checked={soundEnabled} onChange={e => setSoundEnabled(e.target.checked)} className="accent-app-accent w-4 h-4" />
+                           <span className="text-sm text-app-text-s flex items-center gap-2">
+                               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} Notification Sound
+                           </span>
+                        </label>
                     </div>
 
                     <div className="flex gap-4">
@@ -183,7 +177,7 @@ export function PomodoroTab() {
             )}
         </AnimatePresence>
 
-        <div className={`px-4 py-1.5 rounded-full border mb-8 font-mono text-sm uppercase tracking-wider font-semibold ${phaseBg} ${phaseColor}`}>
+        <div className={`mt-8 sm:mt-0 px-4 py-1.5 rounded-full border mb-8 font-mono text-sm uppercase tracking-wider font-semibold ${phaseBg} ${phaseColor}`}>
             {phaseLabel}
         </div>
 

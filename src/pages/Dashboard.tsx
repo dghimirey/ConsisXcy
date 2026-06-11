@@ -1,16 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { Check, Flame, Trophy } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections } from '../services/api';
-import { Routine, Completion, Streak, Category, Section } from '../types';
+import { Routine, Completion, Category, Section } from '../types';
 import { HabitHeatmap } from '../components/HabitHeatmap';
 import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
-import { formatTarget } from '../lib/utils';
+import { StreakCounter } from '../components/StreakCounter';
 import { getIcon } from '../lib/icons';
-import { calculateGlobalStreaks, calculateRoutineStreak } from '../lib/consistency';
+import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone } from '../lib/consistency';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -120,15 +120,6 @@ export default function Dashboard() {
      return calculateRoutineStreak(routineId, routines, categoriesData, completions);
   };
 
-  const getMilestone = (streak: number) => {
-    if (streak >= 100) return { name: '100-Day', icon: '👑', target: 365, textColor: 'text-purple-400', badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/20', barColor: 'bg-purple-400' };
-    if (streak >= 30) return { name: '30-Day', icon: '💎', target: 100, textColor: 'text-cyan-400', badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', barColor: 'bg-cyan-400' };
-    if (streak >= 14) return { name: '14-Day', icon: '🏆', target: 30, textColor: 'text-yellow-400', badgeColor: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20', barColor: 'bg-yellow-400' };
-    if (streak >= 7) return { name: '7-Day', icon: '⭐', target: 14, textColor: 'text-amber-400', badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20', barColor: 'bg-amber-400' };
-    if (streak >= 3) return { name: '3-Day', icon: '🔥', target: 7, textColor: 'text-orange-400', badgeColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20', barColor: 'bg-orange-400' };
-    return { name: null, icon: '🔥', target: 3, textColor: 'text-orange-400', badgeColor: 'text-app-text-s/70 bg-app-surface/50 border-app-border', barColor: 'bg-orange-400' };
-  }
-
   const userGlobalStreaks = useMemo(() => {
     return calculateGlobalStreaks(routines, categoriesData, completions);
   }, [routines, categoriesData, completions]);
@@ -136,85 +127,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       {/* Global Streaks Section */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-8 md:mb-10">
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 relative z-10">
-            <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-app-accent shrink-0" />
-            <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Current Streak</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10">
-            <motion.p 
-              key={`current-text-${userGlobalStreaks.current}`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
-              {userGlobalStreaks.current} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </motion.p>
-            {userGlobalStreaks.current > 0 && (() => {
-               const milestone = getMilestone(userGlobalStreaks.current);
-               const progress = Math.min(100, (userGlobalStreaks.current / milestone.target) * 100);
-               return (
-                  <motion.div 
-                      key={`current-badge-${userGlobalStreaks.current}`}
-                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
-                      animate={{ scale: 1, x: 0, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className={`mb-1 sm:mb-2 flex flex-col gap-1.5 ${milestone.textColor}`}>
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-wide">
-                          <span>{milestone.icon}</span> 
-                          {milestone.name && <span className="font-semibold">{milestone.name} Goal</span>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                          <div className="w-16 sm:w-24 border border-app-border h-1.5 sm:h-2 bg-black/30 rounded-full overflow-hidden">
-                              <div className={`h-full ${milestone.barColor}`} style={{ width: `${progress}%` }} />
-                          </div>
-                           <span className="text-[10px] sm:text-xs font-mono opacity-70">{userGlobalStreaks.current}/{milestone.target}</span>
-                      </div>
-                  </motion.div>
-               );
-            })()}
-          </div>
-          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
-             <Flame className="w-24 h-24 sm:w-48 sm:h-48" />
-          </div>
-        </div>
-
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 relative z-10">
-             <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
-            <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Longest Streak</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10">
-            <motion.p 
-              key={`longest-text-${userGlobalStreaks.longest}`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
-              {userGlobalStreaks.longest} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </motion.p>
-            {userGlobalStreaks.longest > 0 && (() => {
-               const milestone = getMilestone(userGlobalStreaks.longest);
-               return (
-                  <motion.div 
-                      key={`longest-badge-${userGlobalStreaks.longest}`}
-                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
-                      animate={{ scale: 1, x: 0, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className={`mb-1 sm:mb-2 flex items-center gap-1.5 px-2 py-1 rounded-md border ${milestone.badgeColor} text-xs font-mono tracking-wide w-fit`}>
-                      <span>{milestone.icon}</span> 
-                      {milestone.name && <span className="font-semibold">{milestone.name} Achieved</span>}
-                      {!milestone.name && <span className="font-semibold">Started</span>}
-                  </motion.div>
-               );
-            })()}
-          </div>
-          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500">
-             <Trophy className="w-24 h-24 sm:w-48 sm:h-48" />
-          </div>
-        </div>
-      </div>
+      <StreakCounter currentStreak={userGlobalStreaks.current} longestStreak={userGlobalStreaks.longest} />
 
       <header className="mb-6 md:mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

@@ -43,19 +43,28 @@ export function StopwatchTab() {
 
   return (
     <div className="w-full flex flex-col items-center justify-center min-h-[400px]">
-      <div className="bg-app-glass border border-app-border rounded-[32px] p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden">
+      <div className="bg-app-glass border border-app-border rounded-[32px] p-6 sm:p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden">
         
         {/* Time Display */}
-        <div className="text-5xl md:text-7xl font-mono font-bold text-white tracking-tight tabular-nums mb-12">
+        <div className="text-4xl sm:text-5xl md:text-7xl font-mono font-bold text-white tracking-tight tabular-nums mb-12">
           {formatTime(elapsed)}
         </div>
 
         {/* Controls */}
         <div className="flex items-center gap-4 md:gap-6">
+            <button 
+                onClick={handleLap}
+                disabled={!isRunning}
+                className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text-s hover:text-white hover:bg-app-surface/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Lap"
+              >
+                <Flag className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+
           {!isRunning ? (
             <button 
               onClick={start}
-              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500/20 transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500/20 transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:scale-105"
               aria-label="Start"
             >
               <Play className="w-6 h-6 md:w-8 md:h-8 ml-1" />
@@ -63,30 +72,20 @@ export function StopwatchTab() {
           ) : (
             <button 
               onClick={pause}
-              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center hover:bg-amber-500/20 transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center hover:bg-amber-500/20 transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:scale-105"
               aria-label="Pause"
             >
               <Pause className="w-6 h-6 md:w-8 md:h-8" />
             </button>
           )}
 
-          <div className="flex flex-col gap-3">
-             <button 
-                onClick={handleLap}
-                disabled={!isRunning}
-                className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text-s hover:text-white hover:bg-app-surface/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Lap"
-              >
-                <Flag className="w-5 h-5 md:w-6 md:h-6" />
-             </button>
-             <button 
-                onClick={reset}
-                className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text-s hover:text-white hover:bg-app-surface/80 transition-colors"
-                aria-label="Reset"
-              >
-                <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
-             </button>
-          </div>
+          <button 
+              onClick={reset}
+              className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text-s hover:text-white hover:bg-app-surface/80 transition-colors"
+              aria-label="Reset"
+            >
+              <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
         </div>
 
         {/* Laps */}
@@ -106,9 +105,9 @@ export function StopwatchTab() {
                       className="flex items-center justify-between py-2 px-4 rounded-xl bg-app-surface/50 border border-app-border/50 text-app-text-s font-mono"
                     >
                       <span>Lap {lapNumber}</span>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-right sm:text-left">
                         <span className="text-white">{formatTime(lap)}</span>
-                        <span className="text-app-text-p w-24 text-right">+{formatTime(lapDifference)}</span>
+                        <span className="text-app-text-p sm:w-24 sm:text-right text-xs sm:text-base">+{formatTime(lapDifference)}</span>
                       </div>
                     </motion.div>
                   )
