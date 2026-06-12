@@ -108,6 +108,43 @@ export default function Dashboard() {
     },
   });
 
+  const triggerConfetti = (isSectionComplete: boolean) => {
+    if (isSectionComplete) {
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00']
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    } else {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#34d399', '#ffffff'],
+        zIndex: 1000
+      });
+    }
+  };
+
   const getDayStatus = (routineId: string) => {
     return completions.find(c => c.routineId === routineId && new Date(c.date).toISOString().split('T')[0] === todayStr)?.status;
   };
@@ -212,9 +249,9 @@ export default function Dashboard() {
                                          r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
                                      );
                                      if (completesSection) {
-                                         confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                         triggerConfetti(true);
                                      } else {
-                                         confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
+                                         triggerConfetti(false);
                                      }
                                  }
                               }}
@@ -233,9 +270,9 @@ export default function Dashboard() {
                                             r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
                                         );
                                         if (completesSection) {
-                                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                            triggerConfetti(true);
                                         } else {
-                                            confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
+                                            triggerConfetti(false);
                                         }
                                     }
                                 }}
@@ -281,9 +318,9 @@ export default function Dashboard() {
                                                                   r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
                                                               );
                                                               if (completesSection) {
-                                                                  confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 }, colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00'], zIndex: 1000 });
+                                                                  triggerConfetti(true);
                                                               } else {
-                                                                  confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#ffffff'], zIndex: 1000 });
+                                                                  triggerConfetti(false);
                                                               }
                                                           }
                                                       }
