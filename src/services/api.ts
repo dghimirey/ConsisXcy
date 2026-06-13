@@ -1,4 +1,4 @@
-import { Routine, Completion, Streak, User } from '../types';
+import { Routine, Completion, Streak, User, RestrictedTask, RestrictedCompletion } from '../types';
 
 export const fetchRoutines = async (): Promise<Routine[]> => {
   const res = await fetch('/api/routines');
@@ -148,5 +148,62 @@ export const deleteCategory = async (id: string): Promise<void> => {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to delete category');
   }
+};
+
+// --- RESTRICTED TASKS ---
+export const fetchRestrictedTasks = async (): Promise<RestrictedTask[]> => {
+  const res = await fetch('/api/restricted-tasks');
+  if (!res.ok) throw new Error('Failed to fetch restricted tasks');
+  return res.json();
+};
+
+export const createRestrictedTask = async (data: Partial<RestrictedTask>): Promise<RestrictedTask> => {
+  const res = await fetch('/api/restricted-tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create restricted task');
+  }
+  return res.json();
+};
+
+export const updateRestrictedTask = async (id: string, data: Partial<RestrictedTask>): Promise<RestrictedTask> => {
+  const res = await fetch(`/api/restricted-tasks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update restricted task');
+  }
+  return res.json();
+};
+
+export const deleteRestrictedTask = async (id: string): Promise<void> => {
+  const res = await fetch(`/api/restricted-tasks/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete restricted task');
+  }
+};
+
+export const fetchRestrictedCompletions = async (): Promise<RestrictedCompletion[]> => {
+  const res = await fetch('/api/restricted-completions');
+  if (!res.ok) throw new Error('Failed to fetch restricted completions');
+  return res.json();
+};
+
+export const toggleRestrictedCompletion = async (data: { taskId: string; date: string; status: 'AVOIDED' | 'FAILED' }): Promise<RestrictedCompletion> => {
+  const res = await fetch('/api/restricted-completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to toggle restricted completion');
+  return res.json();
 };
 

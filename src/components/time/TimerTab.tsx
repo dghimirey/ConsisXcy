@@ -24,7 +24,7 @@ export function TimerTab() {
   const { isRunning, start, pause, reset, getRemaining, targetDuration, setDuration, remainingTimeAtPause } = useTimerStore();
   const { soundEnabled, toggleSound } = useSettingsStore();
   const [remaining, setRemaining] = useState(getRemaining());
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Input states for setting timer
@@ -217,8 +217,9 @@ export function TimerTab() {
                                     stroke="currentColor" 
                                     className="text-app-accent transition-all duration-300 ease-linear" 
                                     strokeWidth="4" 
-                                    strokeDasharray="300%"
-                                    strokeDashoffset={`${300 - (remaining / targetDuration) * 300}%`}
+                                    pathLength="100"
+                                    strokeDasharray="100"
+                                    strokeDashoffset={100 - (remaining / targetDuration) * 100}
                                     fill="none" 
                                     strokeLinecap="round"
                                 />

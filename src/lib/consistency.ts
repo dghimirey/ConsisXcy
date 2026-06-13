@@ -33,7 +33,7 @@ export function getDayCompletionStatus(
 
   const totalTasks = expectedRoutines.length;
 
-  if (totalTasks === 0) return { status: 'NONE', percentage: 0 };
+  if (totalTasks === 0) return { status: 'NONE', percentage: 0, totalTasks: 0, completedTasks: 0 };
 
   // Find completions for the date
   const filteredCompletions = completions.filter((c: any) => {
@@ -56,14 +56,19 @@ export function getDayCompletionStatus(
   const percentage = Math.round((completedTasks / totalTasks) * 100);
 
   if (completedTasks === totalTasks && totalTasks > 0) {
-    return { status: 'ALL', percentage };
+    return { status: 'ALL', percentage, totalTasks, completedTasks };
+  } else if (isDayEnded) {
+    // If day is over and not ALL, it's MISSED
+    return { status: 'MISSED', percentage, totalTasks, completedTasks };
   } else if (completedTasks > 0) {
-    return { status: 'SOME', percentage };
+    // Day isn't over, but some progress made
+    return { status: 'SOME', percentage, totalTasks, completedTasks };
   } else {
-    if (isDayEnded || (explicitlyMissed === totalTasks && totalTasks > 0)) {
-      return { status: 'MISSED', percentage: 0 };
+    // Day isn't over, 0 progress
+    if (explicitlyMissed === totalTasks && totalTasks > 0) {
+      return { status: 'MISSED', percentage: 0, totalTasks, completedTasks };
     }
-    return { status: 'NONE', percentage: 0 };
+    return { status: 'PENDING', percentage: 0, totalTasks, completedTasks };
   }
 }
 
@@ -90,7 +95,7 @@ export function calculateRoutineStreak(
 
   let currentStreak = 0;
   
-  while (currDate.isBefore(today.add(1, 'day'))) {
+  while (currDate.isBefore(today)) {
     const dayIndex = currDate.day();
     const dateStr = currDate.format('YYYY-MM-DD');
     
@@ -111,11 +116,16 @@ export function calculateRoutineStreak(
     currDate = currDate.add(1, 'day');
   }
 
+  // Check today is not needed since streak is up to yesterday
+  // We do not break or increase the streak for today based on new rules
   return currentStreak;
 }
+
 export function getMilestone(streak: number) {
+  if (streak >= 365) return { name: '1-Year', icon: '🌟', target: 1000, textColor: 'text-amber-300', badgeColor: 'text-amber-300 bg-amber-400/10 border-amber-400/20', barColor: 'bg-amber-300' };
   if (streak >= 100) return { name: '100-Day', icon: '👑', target: 365, textColor: 'text-purple-400', badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/20', barColor: 'bg-purple-400' };
-  if (streak >= 30) return { name: '30-Day', icon: '💎', target: 100, textColor: 'text-cyan-400', badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', barColor: 'bg-cyan-400' };
+  if (streak >= 50) return { name: '50-Day', icon: '🌠', target: 100, textColor: 'text-indigo-400', badgeColor: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20', barColor: 'bg-indigo-400' };
+  if (streak >= 30) return { name: '30-Day', icon: '💎', target: 50, textColor: 'text-cyan-400', badgeColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', barColor: 'bg-cyan-400' };
   if (streak >= 14) return { name: '14-Day', icon: '🏆', target: 30, textColor: 'text-yellow-400', badgeColor: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20', barColor: 'bg-yellow-400' };
   if (streak >= 7) return { name: '7-Day', icon: '⭐', target: 14, textColor: 'text-amber-400', badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20', barColor: 'bg-amber-400' };
   if (streak >= 3) return { name: '3-Day', icon: '🔥', target: 7, textColor: 'text-orange-400', badgeColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20', barColor: 'bg-orange-400' };
@@ -127,53 +137,53 @@ export function calculateGlobalStreaks(
   categories: Category[], 
   completions: Completion[]
 ) {
-  // Let's find dates where we have 'ALL' status
   if (routines.length === 0 || categories.length === 0) {
-    return { current: 0, longest: 0 };
+    return { current: 0, longest: 0, isAtRisk: false, todayCompleted: false };
   }
 
-  // Find earliest creation date of any routine to start checking days from there
   const startDates = routines.map(r => r.createdAt ? new Date(r.createdAt).getTime() : Date.now());
-  const earliestTime = Math.min(...startDates, Date.now() - 30 * 24 * 60 * 60 * 1000); // fallback to 30 days ago
+  const earliestTime = Math.min(...startDates, Date.now() - 30 * 24 * 60 * 60 * 1000); 
   let currDate = dayjs(earliestTime).startOf('day');
   const today = dayjs().startOf('day');
 
   let currentStreak = 0;
   let longestStreak = 0;
-  let tempStreak = 0;
 
-  let lastCompletedDateStr = null;
-
-  while (currDate.isBefore(today.add(1, 'day'))) {
+  while (currDate.isBefore(today)) {
     const dateStr = currDate.format('YYYY-MM-DD');
     const result = getDayCompletionStatus(dateStr, routines, categories, completions);
     const status = result.status;
     
-    // If status is NONE, it's a rest day. Does a rest day break the streak?
-    // Usually, rest days (NONE) carry over the streak but do not increase it.
-    // Or maybe they should just freeze the streak.
-    
     if (status === 'ALL') {
-      tempStreak++;
-      if (tempStreak > longestStreak) longestStreak = tempStreak;
-      lastCompletedDateStr = dateStr;
+      currentStreak++;
+      if (currentStreak > longestStreak) longestStreak = currentStreak;
     } else if (status === 'SOME' || status === 'MISSED') {
-      tempStreak = 0;
+      // Failed to complete all tasks on a past day
+      currentStreak = 0;
     } else if (status === 'NONE') {
-      // Rest day. Streak doesn't break, doesn't increment.
+      // Rest day (no tasks scheduled). Streak doesn't break, doesn't increment.
+      // Or if tasks were scheduled but none done, if it's past it should be MISSED.
     }
     
     currDate = currDate.add(1, 'day');
   }
   
-  // Current streak
+  // Now evaluate today WITHOUT breaking the streak prematurely
   const todayStr = dayjs().format('YYYY-MM-DD');
-  const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+  const todayResult = getDayCompletionStatus(todayStr, routines, categories, completions);
+  const todayStatus = todayResult.status;
+
+  const todayCompleted = (todayStatus === 'ALL');
   
-  const todayStatus = getDayCompletionStatus(todayStr, routines, categories, completions).status;
-  const yesterdayStatus = getDayCompletionStatus(yesterdayStr, routines, categories, completions).status;
+  // They are at risk if today isn't completed and there are tasks to do and they had a streak before today.
+  // Actually, even if they explicitly missed, they have till midnight to change it.
+  const isAtRisk = !todayCompleted && todayResult.totalTasks > 0;
 
-  currentStreak = tempStreak;
-
-  return { current: currentStreak, longest: longestStreak };
+  return { 
+    current: currentStreak, 
+    longest: Math.max(longestStreak, currentStreak + (todayCompleted ? 1 : 0)), 
+    isAtRisk, 
+    todayCompleted,
+    todayPercentage: todayResult.percentage
+  };
 }

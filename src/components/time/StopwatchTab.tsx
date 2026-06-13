@@ -21,7 +21,7 @@ function formatTime(ms: number) {
 export function StopwatchTab() {
   const { isRunning, start, pause, reset, getElapsed, laps, addLap } = useStopwatchStore();
   const [elapsed, setElapsed] = useState(getElapsed());
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
 
   const update = () => {
     setElapsed(getElapsed());

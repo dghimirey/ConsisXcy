@@ -55,6 +55,7 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
            const result = getDayStatus(day);
            const status = result.status;
            const percentage = result.percentage;
+           const isToday = day.isSame(dayjs(), 'day');
            
            let bgClass = 'bg-app-border/30 hover:bg-app-border/50'; // NONE
            
@@ -71,14 +72,15 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
              } else if (percentage > 0) {
                // Orange / deep orange (warning but still progress)
                bgClass = 'bg-gradient-to-br from-[#FF6F00] to-[#FF9800] border border-[#FFB74D]/60 shadow-[0_0_6px_rgba(255,152,0,0.45)] hover:shadow-[0_0_12px_rgba(255,152,0,0.65)] z-10';
+             } else if (isToday || day.isAfter(dayjs(), 'day')) {
+               // Not passed yet (Pending / no progress today or future)
+               bgClass = 'bg-app-border/30 hover:bg-app-border/50 border border-app-border border-dashed';
              } else {
-               // Red for 0% (danger / no progress)
+               // Red for 0% strictly for missed/passed days
                bgClass = 'bg-gradient-to-br from-[#C62828] to-[#D32F2F] border border-[#EF9A9A]/50 shadow-[0_0_5px_rgba(211,47,47,0.4)] hover:shadow-[0_0_10px_rgba(211,47,47,0.6)] z-10';
              }
            }
            
-           const isToday = day.isSame(dayjs(), 'day');
-
            return (
              <div 
                key={day.format('YYYY-MM-DD')} 

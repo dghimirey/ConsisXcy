@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createRoutine, updateRoutine, deleteRoutine, createCategory, updateCategory, deleteCategory, createSection, updateSection, deleteSection } from '../services/api';
+import { createRoutine, updateRoutine, deleteRoutine, createCategory, updateCategory, deleteCategory, createSection, updateSection, deleteSection, createRestrictedTask, updateRestrictedTask, deleteRestrictedTask } from '../services/api';
 
 export function useManagementMutations() {
   const queryClient = useQueryClient();
@@ -19,6 +19,23 @@ export function useManagementMutations() {
     mutationFn: deleteRoutine,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['routines'] }),
     onError: (err: any) => console.error("Delete Routine Error:", err)
+  });
+
+  // Restricted Tasks
+  const updateRestrictedMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: any }) => updateRestrictedTask(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['restrictedTasks'] }),
+    onError: (err: any) => console.error("Update RestrictedTask Error:", err)
+  });
+  const createRestrictedMutation = useMutation({
+    mutationFn: (data: any) => createRestrictedTask(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['restrictedTasks'] }),
+    onError: (err: any) => console.error("Create RestrictedTask Error:", err)
+  });
+  const deleteRestrictedMutation = useMutation({
+    mutationFn: deleteRestrictedTask,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['restrictedTasks'] }),
+    onError: (err: any) => console.error("Delete RestrictedTask Error:", err)
   });
 
   // Categories
@@ -57,6 +74,7 @@ export function useManagementMutations() {
 
   return {
     updateRoutineMutation, createRoutineMutation, deleteRoutineMutation,
+    updateRestrictedMutation, createRestrictedMutation, deleteRestrictedMutation,
     updateCategoryMutation, createCategoryMutation, deleteCategoryMutation,
     updateSectionMutation, createSectionMutation, deleteSectionMutation
   };

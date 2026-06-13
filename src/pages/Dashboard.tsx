@@ -4,11 +4,12 @@ import { format } from 'date-fns';
 import { Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections } from '../services/api';
-import { Routine, Completion, Category, Section } from '../types';
+import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections, fetchRestrictedTasks, fetchRestrictedCompletions, toggleRestrictedCompletion } from '../services/api';
+import { Routine, Completion, Category, Section, RestrictedTask, RestrictedCompletion } from '../types';
 import { HabitHeatmap } from '../components/HabitHeatmap';
 import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { StreakCounter } from '../components/StreakCounter';
+import { RestrictedTasksList } from '../components/RestrictedTasksList';
 import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone } from '../lib/consistency';
 
@@ -23,6 +24,9 @@ export default function Dashboard() {
     const { data: streaks = [] } = useQuery({ queryKey: ['streaks'], queryFn: fetchStreaks });
     const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
     const { data: sectionsData = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
+
+    const { data: restrictedTasks = [] } = useQuery({ queryKey: ['restrictedTasks'], queryFn: fetchRestrictedTasks });
+    const { data: restrictedCompletions = [] } = useQuery({ queryKey: ['restrictedCompletions'], queryFn: fetchRestrictedCompletions });
 
     // Dashboard behavior: Display only categories scheduled for today
     const currentDayIndex = new Date().getDay(); // 0 is Sunday
@@ -157,6 +161,17 @@ export default function Dashboard() {
      return calculateRoutineStreak(routineId, routines, categoriesData, completions);
   };
 
+  const restrictedMutation = useMutation({
+    mutationFn: toggleRestrictedCompletion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['restrictedCompletions'] });
+    }
+  });
+
+  const getRestrictedStatus = (taskId: string) => {
+    return restrictedCompletions.find(c => c.taskId === taskId && new Date(c.date).toISOString().split('T')[0] === todayStr)?.status;
+  };
+
   const userGlobalStreaks = useMemo(() => {
     return calculateGlobalStreaks(routines, categoriesData, completions);
   }, [routines, categoriesData, completions]);
@@ -164,7 +179,13 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       {/* Global Streaks Section */}
-      <StreakCounter currentStreak={userGlobalStreaks.current} longestStreak={userGlobalStreaks.longest} />
+      <StreakCounter 
+        currentStreak={userGlobalStreaks.current} 
+        longestStreak={userGlobalStreaks.longest} 
+        isAtRisk={userGlobalStreaks.isAtRisk}
+        todayCompleted={userGlobalStreaks.todayCompleted}
+        todayPercentage={Math.round(userGlobalStreaks.todayPercentage || 0)}
+      />
 
       <header className="mb-6 md:mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -379,6 +400,10 @@ export default function Dashboard() {
           })
         )}
       </div>
+
+      {restrictedTasks.length > 0 && selectedSection === 'All' && (
+        <RestrictedTasksList tasks={restrictedTasks} completions={restrictedCompletions} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
           <HabitHeatmap section={selectedSection} />

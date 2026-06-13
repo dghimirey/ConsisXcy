@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Edit2, ChevronDown, ChevronRight, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchRoutines, fetchCategories, fetchSections } from '../services/api';
-import { Routine, Category, Section } from '../types';
+import { fetchRoutines, fetchCategories, fetchSections, fetchRestrictedTasks } from '../services/api';
+import { Routine, Category, Section, RestrictedTask } from '../types';
 import { formatTarget } from '../lib/utils';
 import { Modal } from '../components/Modal';
 import { useManagementMutations } from '../hooks/useManagementMutations';
@@ -14,9 +14,12 @@ import toast from 'react-hot-toast';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function RoutinesPage() {
+  const [activeTab, setActiveTab] = useState<'routines' | 'restricted'>('routines');
+
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
   const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: sections = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
+  const { data: restrictedTasks = [] } = useQuery({ queryKey: ['restrictedTasks'], queryFn: fetchRestrictedTasks });
   
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -24,7 +27,8 @@ export default function RoutinesPage() {
   const [editingRoutine, setEditingRoutine] = useState<Partial<Routine> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
   const [editingSection, setEditingSection] = useState<Partial<Section> | null>(null);
-  const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'Routine' | 'Category' | 'Section'} | null>(null);
+  const [editingRestricted, setEditingRestricted] = useState<Partial<RestrictedTask> | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{id: string, type: 'Routine' | 'Category' | 'Section' | 'RestrictedTask'} | null>(null);
   
   const [saveErrors, setSaveErrors] = useState<Record<string, string | null>>({});
 
@@ -33,7 +37,8 @@ export default function RoutinesPage() {
   const {
     updateRoutineMutation, createRoutineMutation, deleteRoutineMutation,
     updateCategoryMutation, createCategoryMutation, deleteCategoryMutation,
-    updateSectionMutation, createSectionMutation, deleteSectionMutation
+    updateSectionMutation, createSectionMutation, deleteSectionMutation,
+    updateRestrictedMutation, createRestrictedMutation, deleteRestrictedMutation
   } = useManagementMutations();
 
   // Auto-expand sections that have categories
@@ -73,18 +78,32 @@ export default function RoutinesPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
             <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-white mb-1.5 md:mb-2">Manage</h1>
+            <div className="flex gap-4 mt-2">
+               <button onClick={() => setActiveTab('routines')} className={`pb-1 border-b-2 text-sm font-medium transition-colors ${activeTab === 'routines' ? 'border-app-accent text-white' : 'border-transparent text-app-text-s hover:text-white'}`}>Habits & Routines</button>
+               <button onClick={() => setActiveTab('restricted')} className={`pb-1 border-b-2 text-sm font-medium transition-colors ${activeTab === 'restricted' ? 'border-rose-400 text-white' : 'border-transparent text-app-text-s hover:text-white'}`}>Restricted Tasks</button>
+            </div>
         </div>
-        <button 
-          onClick={() => setEditingSection({ name: '' })}
-          className="flex items-center justify-center gap-2 bg-app-accent text-app-bg hover:bg-app-accent/90 shrink-0 font-medium px-5 py-3 md:py-2.5 rounded-xl transition-all shadow-md w-full md:w-auto"
-        >
-          <Plus className="w-4 h-4 text-zinc-900" strokeWidth={3} />
-          New Section
-        </button>
+        {activeTab === 'routines' ? (
+          <button 
+            onClick={() => setEditingSection({ name: '' })}
+            className="flex items-center justify-center gap-2 bg-app-accent text-app-bg hover:bg-app-accent/90 shrink-0 font-medium px-5 py-3 md:py-2.5 rounded-xl transition-all shadow-md w-full md:w-auto"
+          >
+            <Plus className="w-4 h-4 text-zinc-900" strokeWidth={3} />
+            New Section
+          </button>
+        ) : (
+          <button 
+            onClick={() => setEditingRestricted({ name: '', icon: '🚫', isActive: true })}
+            className="flex items-center justify-center gap-2 bg-rose-500 text-white hover:bg-rose-400 shrink-0 font-medium px-5 py-3 md:py-2.5 rounded-xl transition-all shadow-md w-full md:w-auto"
+          >
+             <Plus className="w-4 h-4 text-white" strokeWidth={3} />
+             New Restricted Task
+          </button>
+        )}
       </div>
 
       <div className="space-y-6">
-        {groupedData.map((section: any) => (
+        {activeTab === 'routines' && groupedData.map((section: any) => (
           <div key={section.id} className="bg-app-glass border border-app-border rounded-[20px] overflow-hidden">
             <div className="bg-app-surface/60 p-4 md:p-6 flex items-center justify-between cursor-pointer hover:bg-app-surface/80 transition-colors" onClick={() => toggleSection(section.id)}>
               <div className="flex items-center gap-3 md:gap-4">
@@ -169,10 +188,37 @@ export default function RoutinesPage() {
             </AnimatePresence>
           </div>
         ))}
-        {sections.length === 0 && (
+        {activeTab === 'routines' && sections.length === 0 && (
           <div className="text-center py-20 bg-app-glass border border-app-border rounded-[20px]">
             <p className="text-app-text-s">No sections found. Create one to begin architecting your day.</p>
           </div>
+        )}
+
+        {activeTab === 'restricted' && (
+           <div className="bg-app-glass border border-app-border rounded-[20px] overflow-hidden p-4 md:p-6 space-y-4">
+              {restrictedTasks.length === 0 ? (
+                 <div className="text-center py-10">
+                   <p className="text-app-text-s">No restricted tasks found. Create one to add a habit you want to avoid.</p>
+                 </div>
+              ) : (
+                 restrictedTasks.map((task: RestrictedTask) => (
+                    <div key={task.id} className="flex items-center justify-between p-3 md:p-4 bg-app-surface/40 hover:bg-app-surface/60 border border-app-border rounded-xl transition-colors">
+                       <div className="flex items-center gap-3">
+                          <span className="text-xl">{task.icon}</span>
+                          <span className="font-medium text-white">{task.name}</span>
+                       </div>
+                       <div className="flex items-center gap-1">
+                          <button onClick={() => setEditingRestricted(task)} className="min-w-[40px] min-h-[40px] flex items-center justify-center text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setItemToDelete({id: task.id, type: 'RestrictedTask'})} className="min-w-[40px] min-h-[40px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                       </div>
+                    </div>
+                 ))
+              )}
+           </div>
         )}
       </div>
 
@@ -427,6 +473,7 @@ export default function RoutinesPage() {
                    setEditingRoutine(null);
                    setEditingCategory(null);
                    setEditingSection(null);
+                   setEditingRestricted(null);
                  };
                  const errorCallback = (err: any) => {
                    toast.error(err.message || 'Failed to delete');
@@ -438,9 +485,11 @@ export default function RoutinesPage() {
                    deleteCategoryMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
                  } else if (itemToDelete.type === 'Section') {
                    deleteSectionMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
+                 } else if (itemToDelete.type === 'RestrictedTask') {
+                   deleteRestrictedMutation.mutate(itemToDelete.id, { onSuccess: successCallback, onError: errorCallback });
                  }
                }} 
-               disabled={deleteRoutineMutation.isPending || deleteCategoryMutation.isPending || deleteSectionMutation.isPending}
+               disabled={deleteRoutineMutation.isPending || deleteCategoryMutation.isPending || deleteSectionMutation.isPending || deleteRestrictedMutation.isPending}
                className="px-6 py-2.5 min-h-[44px] text-sm bg-rose-500/10 text-rose-400 font-medium rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm disabled:opacity-50"
             >
                Delete
@@ -452,6 +501,60 @@ export default function RoutinesPage() {
            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm leading-relaxed">
              Are you sure you want to permanently delete this item?
            </div>
+        </div>
+      </Modal>
+
+      <Modal 
+        isOpen={!!editingRestricted} 
+        onClose={() => { setEditingRestricted(null); setSaveErrors(p => ({...p, restricted: null})); }} 
+        title={editingRestricted?.id ? 'Edit Restricted Task' : 'New Restricted Task'}
+        footer={
+          <div className="flex w-full justify-between items-center">
+            {editingRestricted?.id ? (
+              <button 
+                onClick={() => {
+                  setItemToDelete({id: editingRestricted.id as string, type: 'RestrictedTask'});
+                }}
+                className="px-4 py-2.5 min-h-[44px] text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingRestricted(null); setSaveErrors(p => ({...p, restricted: null})); }} className="px-5 py-2.5 min-h-[44px] text-sm font-medium text-app-text-s hover:text-white transition-colors">Cancel</button>
+              <button 
+                onClick={() => {
+                  if (!editingRestricted?.name) return;
+                  setSaveErrors(p => ({...p, restricted: null}));
+                  const onSuccess = () => { setEditingRestricted(null); setSaveErrors(p => ({...p, restricted: null})); };
+                  const onError = (e: any) => setSaveErrors(p => ({...p, restricted: e.message || 'Failed to save task'}));
+                  if (editingRestricted?.id) updateRestrictedMutation.mutate({ id: editingRestricted.id, data: editingRestricted }, { onSuccess, onError });
+                  else createRestrictedMutation.mutate(editingRestricted, { onSuccess, onError });
+                }} 
+                disabled={!editingRestricted?.name || createRestrictedMutation.isPending || updateRestrictedMutation.isPending}
+                className="px-6 py-2.5 min-h-[44px] text-sm bg-app-accent text-zinc-900 font-medium rounded-xl hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {(createRestrictedMutation.isPending || updateRestrictedMutation.isPending) ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          {saveErrors.restricted && <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm">{saveErrors.restricted}</div>}
+          
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Task Name</label>
+            <input autoFocus type="text" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors" value={editingRestricted?.name || ''} onChange={e => setEditingRestricted((r: any) => ({...r, name: e.target.value}))} placeholder="e.g. No Fast Food, No TikTok" />
+          </div>
+
+          <div>
+             <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Icon <span className="text-app-text-s/50">(Optional)</span></label>
+             <IconPicker 
+                value={editingRestricted?.icon}
+                onChange={(icon) => setEditingRestricted((r: any) => ({...r, icon}))}
+             />
+          </div>
         </div>
       </Modal>
     </div>

@@ -421,6 +421,97 @@ app.delete('/api/categories/:id', authenticate, async (req: express.Request, res
   }
 });
 
+// --- RESTRICTED TASKS ---
+app.get('/api/restricted-tasks', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const tasks = await sql`SELECT * FROM "RestrictedTask" ORDER BY "createdAt" DESC`;
+    res.json(tasks);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/restricted-tasks', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const id = crypto.randomUUID();
+    const { name, icon = null, isActive = true } = req.body;
+    if (!name) {
+      res.status(400).json({ error: "Missing name" });
+      return;
+    }
+    const tasks = await sql`
+      INSERT INTO "RestrictedTask" (id, name, icon, "isActive", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${icon}, ${isActive}, NOW(), NOW())
+      RETURNING *
+    `;
+    res.json(tasks[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/restricted-tasks/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { name, icon = null, isActive = true } = req.body;
+    const tasks = await sql`
+      UPDATE "RestrictedTask"
+      SET name = ${name}, icon = ${icon}, "isActive" = ${isActive}, "updatedAt" = NOW()
+      WHERE id = ${req.params.id}
+      RETURNING *
+    `;
+    if (tasks.length === 0) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    res.json(tasks[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/restricted-tasks/:id', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    await sql`DELETE FROM "RestrictedCompletion" WHERE "taskId" = ${req.params.id}`;
+    await sql`DELETE FROM "RestrictedTask" WHERE id = ${req.params.id}`;
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/restricted-completions', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const completions = await sql`SELECT * FROM "RestrictedCompletion"`;
+    res.json(completions);
+  } catch(e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/restricted-completions', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const { taskId, date, status } = req.body;
+    const parsedDate = new Date(date).toISOString();
+    const id = crypto.randomUUID();
+    
+    const completions = await sql`
+      INSERT INTO "RestrictedCompletion" (id, "taskId", date, status, "createdAt", "updatedAt")
+      VALUES (${id}, ${taskId}, ${parsedDate}::timestamp, ${status}, NOW(), NOW())
+      ON CONFLICT ("taskId", date)
+      DO UPDATE SET status = EXCLUDED.status, "updatedAt" = NOW()
+      RETURNING *
+    `;
+    res.json(completions[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 async function startServer() {
   await initDb();

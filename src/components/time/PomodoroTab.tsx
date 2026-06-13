@@ -35,7 +35,7 @@ export function PomodoroTab() {
   const { soundEnabled, setSoundEnabled } = useSettingsStore();
 
   const [remaining, setRemaining] = useState(getRemaining());
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -195,8 +195,9 @@ export function PomodoroTab() {
                     stroke="currentColor" 
                     className={`${phaseColor} transition-all duration-300 ease-linear`}
                     strokeWidth="4" 
-                    strokeDasharray="300%"
-                    strokeDashoffset={`${300 - (remaining / currentDuration) * 300}%`}
+                    pathLength="100"
+                    strokeDasharray="100"
+                    strokeDashoffset={100 - (remaining / currentDuration) * 100}
                     fill="none" 
                     strokeLinecap="round"
                 />

@@ -14,6 +14,22 @@ export interface Routine {
   updatedAt: string;
 }
 
+export interface RestrictedTask {
+  id: string;
+  name: string;
+  icon?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface RestrictedCompletion {
+  id: string;
+  taskId: string;
+  date: string;
+  status: 'AVOIDED' | 'FAILED';
+  createdAt: string;
+}
+
 export interface Completion {
   id: string;
   routineId: string;
