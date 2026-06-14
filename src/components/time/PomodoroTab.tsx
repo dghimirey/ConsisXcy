@@ -52,6 +52,7 @@ export function PomodoroTab() {
       if (soundEnabled) {
           if (phase === 'focus') {
              audioSystem.playPomodoroWorkComplete();
+             setTimeout(() => audioSystem.playConfetti(), 100);
              confetti({
                 particleCount: 50,
                 spread: 60,

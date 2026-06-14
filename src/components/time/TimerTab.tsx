@@ -51,6 +51,7 @@ export function TimerTab() {
          pause();
          if (soundEnabled) {
             audioSystem.playTimerComplete();
+            setTimeout(() => audioSystem.playConfetti(), 100);
             confetti({
                particleCount: 80,
                spread: 70,

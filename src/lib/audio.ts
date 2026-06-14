@@ -6,239 +6,635 @@ class AudioManager {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.5; // default volume
-      this.masterGain.connect(this.ctx.destination);
+      
+      const compressor = this.ctx.createDynamicsCompressor();
+      compressor.threshold.value = -12;
+      compressor.knee.value = 8;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0.01;
+      compressor.release.value = 0.1;
+
+      this.masterGain.connect(compressor);
+      compressor.connect(this.ctx.destination);
+      this.masterGain.gain.value = 0.8;
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }
 
-  private playTone(
-    freq: number,
-    type: OscillatorType,
-    duration: number,
-    vol: number = 1,
-    attack: number = 0.05,
-    release: number = 0.1
-  ) {
-    if (!this.ctx || !this.masterGain) return;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-    // Envelope
-    gain.gain.setValueAtTime(0, this.ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + attack);
-    gain.gain.setValueAtTime(vol, this.ctx.currentTime + duration - release);
-    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + duration);
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
+  private getNoiseBuffer(duration: number): AudioBuffer | null {
+    if (!this.ctx) return null;
+    const size = this.ctx.sampleRate * duration;
+    const buffer = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+    return buffer;
   }
 
-  private playSequence(
-    notes: { freq: number; type: OscillatorType; duration: number; delay: number; vol?: number }[]
-  ) {
-    if (!this.ctx || !this.masterGain) return;
+  // --- 1. Routine Completed (✅) ---
+  playRoutineCompletion() {
+    this.init();
+    const t = this.ctx!.currentTime;
     
-    notes.forEach((note) => {
+    // Hardwood dowel strike (short noise/square burst)
+    const clack = this.ctx!.createOscillator();
+    clack.type = 'square';
+    clack.frequency.setValueAtTime(600, t);
+    clack.frequency.exponentialRampToValueAtTime(50, t + 0.05);
+    const clackGain = this.ctx!.createGain();
+    clackGain.gain.setValueAtTime(0, t);
+    clackGain.gain.linearRampToValueAtTime(0.4, t + 0.01);
+    clackGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    clack.connect(clackGain);
+    clackGain.connect(this.masterGain!);
+    clack.start(t);
+    clack.stop(t + 0.1);
+
+    // D6 Glockenspiel (1174.66 Hz)
+    const glock = this.ctx!.createOscillator();
+    glock.type = 'sine';
+    glock.frequency.value = 1174.66;
+    const glockGain = this.ctx!.createGain();
+    glockGain.gain.setValueAtTime(0, t + 0.04);
+    glockGain.gain.linearRampToValueAtTime(0.5, t + 0.06);
+    glockGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    glock.connect(glockGain);
+    glockGain.connect(this.masterGain!);
+    glock.start(t + 0.04);
+    glock.stop(t + 0.4);
+  }
+
+  // --- 2. Daily Completion (🎯) ---
+  playDailyCompletion() {
+    this.init();
+    const t = this.ctx!.currentTime;
+    
+    // Arpeggio: C4, E4, G4, C5
+    const freqs = [261.63, 329.63, 392.00, 523.25];
+    
+    const delay = this.ctx!.createDelay();
+    delay.delayTime.value = 0.12;
+    const feedback = this.ctx!.createGain();
+    feedback.gain.value = 0.25;
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(this.masterGain!);
+
+    freqs.forEach((f, i) => {
       const osc = this.ctx!.createOscillator();
+      osc.type = 'triangle'; // synthetic xylophone
+      osc.frequency.value = f;
       const gain = this.ctx!.createGain();
-
-      osc.type = note.type;
-      osc.frequency.setValueAtTime(note.freq, this.ctx!.currentTime + note.delay);
-
-      const vol = note.vol || 1;
-      const attack = 0.02;
-      const release = 0.05;
-
-      gain.gain.setValueAtTime(0, this.ctx!.currentTime + note.delay);
-      gain.gain.linearRampToValueAtTime(vol, this.ctx!.currentTime + note.delay + attack);
-      gain.gain.setValueAtTime(vol, this.ctx!.currentTime + note.delay + note.duration - release);
-      gain.gain.linearRampToValueAtTime(0, this.ctx!.currentTime + note.delay + note.duration);
-
+      const start = t + i * 0.12;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.2);
       osc.connect(gain);
       gain.connect(this.masterGain!);
-
-      osc.start(this.ctx!.currentTime + note.delay);
-      osc.stop(this.ctx!.currentTime + note.delay + note.duration);
+      gain.connect(delay);
+      osc.start(start);
+      osc.stop(start + 0.3);
     });
   }
 
-  // --- Routine Completion Sounds ---
-  
-  // Soft pop / pleasant chime
-  playRoutineCompletion() {
+  // --- 3. Streak Maintained (🔥) ---
+  playStreakMaintained() {
     this.init();
-    this.playSequence([
-      { freq: 440, type: 'sine', duration: 0.15, delay: 0, vol: 0.4 },
-      { freq: 554.37, type: 'sine', duration: 0.25, delay: 0.1, vol: 0.4 },
-    ]);
+    const t = this.ctx!.currentTime;
+    
+    const noise = this.ctx!.createBufferSource();
+    noise.buffer = this.getNoiseBuffer(0.5);
+    const noiseFilter = this.ctx!.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.setValueAtTime(4000, t);
+    noiseFilter.frequency.exponentialRampToValueAtTime(200, t + 0.4);
+    const noiseGain = this.ctx!.createGain();
+    noiseGain.gain.setValueAtTime(0, t);
+    noiseGain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.masterGain!);
+    noise.start(t);
+
+    const ding = this.ctx!.createOscillator();
+    ding.type = 'triangle';
+    ding.frequency.value = 1500;
+    const dingGain = this.ctx!.createGain();
+    dingGain.gain.setValueAtTime(0, t);
+    dingGain.gain.linearRampToValueAtTime(0.4, t + 0.02);
+    dingGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    ding.connect(dingGain);
+    dingGain.connect(this.masterGain!);
+    ding.start(t);
+    ding.stop(t + 0.6);
   }
 
-  // Daily Completion: Richer success sequence
-  playDailyCompletion() {
+  // --- 4. New Personal Record (🏆) ---
+  playPersonalBest() {
     this.init();
-    this.playSequence([
-      { freq: 523.25, type: 'sine', duration: 0.15, delay: 0, vol: 0.3 },     // C5
-      { freq: 659.25, type: 'sine', duration: 0.15, delay: 0.15, vol: 0.3 },  // E5
-      { freq: 783.99, type: 'sine', duration: 0.15, delay: 0.3, vol: 0.3 },   // G5
-      { freq: 1046.50, type: 'sine', duration: 0.4, delay: 0.45, vol: 0.4 }   // C6
-    ]);
+    const t = this.ctx!.currentTime;
+    
+    // G major swell: G3, B3, D4, G4
+    const freqs = [196, 246.94, 293.66, 392];
+    const synthGain = this.ctx!.createGain();
+    synthGain.gain.setValueAtTime(0, t);
+    synthGain.gain.linearRampToValueAtTime(0.3, t + 0.2); 
+    synthGain.gain.exponentialRampToValueAtTime(0.01, t + 1.2);
+    
+    const filter = this.ctx!.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(400, t);
+    filter.frequency.linearRampToValueAtTime(3000, t + 0.2);
+    filter.connect(synthGain);
+    synthGain.connect(this.masterGain!);
+
+    freqs.forEach(f => {
+      const osc = this.ctx!.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      osc.connect(filter);
+      osc.start(t);
+      osc.stop(t + 1.3);
+    });
+
+    // Sub bass G2
+    const sub = this.ctx!.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = 98;
+    const subGain = this.ctx!.createGain();
+    subGain.gain.setValueAtTime(0, t);
+    subGain.gain.linearRampToValueAtTime(0.4, t + 0.2);
+    subGain.gain.exponentialRampToValueAtTime(0.01, t + 1.2);
+    sub.connect(subGain);
+    subGain.connect(this.masterGain!);
+    sub.start(t);
+    sub.stop(t + 1.3);
+
+    // High frequency synth sweep
+    const sweep = this.ctx!.createOscillator();
+    sweep.type = 'sine';
+    sweep.frequency.setValueAtTime(2000, t + 0.2);
+    sweep.frequency.linearRampToValueAtTime(5000, t + 1.0);
+    const sweepGain = this.ctx!.createGain();
+    sweepGain.gain.setValueAtTime(0, t + 0.2);
+    sweepGain.gain.linearRampToValueAtTime(0.1, t + 0.4);
+    sweepGain.gain.exponentialRampToValueAtTime(0.01, t + 1.2);
+    sweep.connect(sweepGain);
+    sweepGain.connect(this.masterGain!);
+    sweep.start(t + 0.2);
+    sweep.stop(t + 1.3);
   }
 
-  // Perfect Day: Warm success melody (1-2 seconds max)
-  playPerfectDay() {
+  // --- 5. 7-Day Streak (🌟) ---
+  play7DayStreak() {
     this.init();
-    this.playSequence([
-      { freq: 440, type: 'triangle', duration: 0.2, delay: 0, vol: 0.3 },
-      { freq: 554.37, type: 'triangle', duration: 0.2, delay: 0.2, vol: 0.3 },
-      { freq: 659.25, type: 'triangle', duration: 0.2, delay: 0.4, vol: 0.3 },
-      { freq: 880, type: 'triangle', duration: 0.6, delay: 0.6, vol: 0.4 },
-    ]);
+    const t = this.ctx!.currentTime;
+    
+    // A4, C#5, E5
+    const freqs = [440, 554.37, 659.25];
+    
+    const delay = this.ctx!.createDelay();
+    delay.delayTime.value = 0.2;
+    const feedback = this.ctx!.createGain();
+    feedback.gain.value = 0.3;
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(this.masterGain!);
+
+    freqs.forEach((f, i) => {
+      const osc = this.ctx!.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      
+      const fmOsc = this.ctx!.createOscillator();
+      fmOsc.type = 'triangle';
+      fmOsc.frequency.value = f * 2.5; 
+      const fmGain = this.ctx!.createGain();
+      fmGain.gain.setValueAtTime(f * 2, t);
+      fmOsc.connect(fmGain);
+      fmGain.connect(osc.frequency);
+      
+      const gain = this.ctx!.createGain();
+      const start = t + i * 0.3;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.4, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + (i === 2 ? 1.5 : 0.4));
+      
+      osc.connect(gain);
+      fmOsc.start(start);
+      osc.start(start);
+      fmOsc.stop(start + 2.0);
+      osc.stop(start + 2.0);
+      
+      gain.connect(this.masterGain!);
+      gain.connect(delay);
+    });
   }
 
-  // --- Streak Milestone Sounds ---
-  playMilestone(streak: number) {
+  // --- 6. 30-Day Streak (👑) ---
+  play30DayStreak() {
     this.init();
-    if (streak >= 100) {
-      // 100 Day Streak: Epic
-      this.playSequence([
-        { freq: 523.25, type: 'square', duration: 0.2, delay: 0, vol: 0.2 },
-        { freq: 659.25, type: 'square', duration: 0.2, delay: 0.2, vol: 0.2 },
-        { freq: 783.99, type: 'square', duration: 0.2, delay: 0.4, vol: 0.2 },
-        { freq: 1046.50, type: 'square', duration: 0.2, delay: 0.6, vol: 0.2 },
-        { freq: 1567.98, type: 'square', duration: 0.6, delay: 0.8, vol: 0.3 }, // G6
-      ]);
-    } else if (streak >= 30) {
-      this.playSequence([
-        { freq: 440, type: 'triangle', duration: 0.15, delay: 0, vol: 0.3 },
-        { freq: 554.37, type: 'triangle', duration: 0.15, delay: 0.15, vol: 0.3 },
-        { freq: 880, type: 'triangle', duration: 0.5, delay: 0.3, vol: 0.4 },
-      ]);
-    } else if (streak >= 14) {
-      this.playSequence([
-        { freq: 392.00, type: 'triangle', duration: 0.15, delay: 0, vol: 0.3 }, // G4
-        { freq: 523.25, type: 'triangle', duration: 0.15, delay: 0.15, vol: 0.3 }, // C5
-        { freq: 783.99, type: 'triangle', duration: 0.4, delay: 0.3, vol: 0.4 }, // G5
-      ]);
-    } else if (streak >= 7) {
-      this.playSequence([
-        { freq: 329.63, type: 'sine', duration: 0.15, delay: 0, vol: 0.4 }, // E4
-        { freq: 440, type: 'sine', duration: 0.15, delay: 0.15, vol: 0.4 }, // A4
-        { freq: 659.25, type: 'sine', duration: 0.4, delay: 0.3, vol: 0.5 }, // E5
-      ]);
-    } else { // 3 days
-      this.playSequence([
-        { freq: 440, type: 'sine', duration: 0.15, delay: 0, vol: 0.4 },
-        { freq: 554.37, type: 'sine', duration: 0.4, delay: 0.15, vol: 0.4 }
-      ]);
+    const t = this.ctx!.currentTime;
+    
+    // Digital orchestra C-E-G chord swell
+    const chord = [130.81, 196.00, 261.63, 329.63]; // C3, G3, C4, E4
+    chord.forEach(f => {
+      const osc = this.ctx!.createOscillator(); 
+      osc.type = 'sawtooth'; 
+      osc.frequency.value = f;
+      const g = this.ctx!.createGain(); 
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.15, t + 0.8);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 2.0);
+      osc.connect(g); 
+      g.connect(this.masterGain!); 
+      osc.start(t); 
+      osc.stop(t+2);
+    });
+
+    // Cascading harp glissando
+    const harp = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.5]; // C4 -> C6
+    harp.forEach((f, i) => {
+      const osc = this.ctx!.createOscillator(); 
+      osc.type = 'sine'; 
+      osc.frequency.value = f;
+      const g = this.ctx!.createGain(); 
+      const start = t + i * 0.06;
+      g.gain.setValueAtTime(0, start); 
+      g.gain.linearRampToValueAtTime(0.1, start + 0.02); 
+      g.gain.exponentialRampToValueAtTime(0.01, start + 0.5);
+      osc.connect(g); 
+      g.connect(this.masterGain!); 
+      osc.start(start); 
+      osc.stop(start+0.5);
+    });
+
+    // Warm boom
+    const boom = this.ctx!.createOscillator(); 
+    boom.type = 'sine'; 
+    boom.frequency.setValueAtTime(120, t); 
+    boom.frequency.exponentialRampToValueAtTime(40, t+0.5);
+    const bg = this.ctx!.createGain(); 
+    bg.gain.setValueAtTime(0.5, t); 
+    bg.gain.exponentialRampToValueAtTime(0.01, t+1.5);
+    boom.connect(bg); 
+    bg.connect(this.masterGain!); 
+    boom.start(t); 
+    boom.stop(t+1.5);
+  }
+
+  // --- 7. 100-Day Streak (💯) ---
+  play100DayStreak() {
+    this.init();
+    const t = this.ctx!.currentTime;
+    
+    // C-G-C Brass Fanfare (C4, G4, C5)
+    const seq = [
+       {f:261.63, start:0, dur:0.2}, 
+       {f:392.00, start:0.25, dur:0.2}, 
+       {f:523.25, start:0.5, dur:1.5}
+    ];
+    
+    seq.forEach(n => {
+      [1, 1.01].forEach(detune => {
+        const osc = this.ctx!.createOscillator(); 
+        osc.type = 'sawtooth'; 
+        osc.frequency.value = n.f * detune;
+        const g = this.ctx!.createGain(); 
+        g.gain.setValueAtTime(0, t+n.start);
+        g.gain.linearRampToValueAtTime(0.15, t+n.start+0.05); 
+        g.gain.exponentialRampToValueAtTime(0.01, t+n.start+n.dur);
+        osc.connect(g); 
+        g.connect(this.masterGain!); 
+        osc.start(t+n.start); 
+        osc.stop(t+n.start+n.dur+0.1);
+      });
+    });
+
+    // Heavy orchestral crash
+    const noise = this.ctx!.createBufferSource(); 
+    noise.buffer = this.getNoiseBuffer(2);
+    const nf = this.ctx!.createBiquadFilter(); 
+    nf.type = 'bandpass'; 
+    nf.frequency.value = 3000;
+    const ng = this.ctx!.createGain(); 
+    ng.gain.setValueAtTime(0, t+0.5); 
+    ng.gain.linearRampToValueAtTime(0.25, t+0.55); 
+    ng.gain.exponentialRampToValueAtTime(0.01, t+2.5);
+    noise.connect(nf); 
+    nf.connect(ng); 
+    ng.connect(this.masterGain!); 
+    noise.start(t+0.5);
+
+    // Choral Pad
+    const padOsc = this.ctx!.createOscillator(); 
+    padOsc.type = 'sine'; 
+    padOsc.frequency.value = 523.25;
+    const padG = this.ctx!.createGain(); 
+    padG.gain.setValueAtTime(0, t+0.5); 
+    padG.gain.linearRampToValueAtTime(0.15, t+1.0); 
+    padG.gain.exponentialRampToValueAtTime(0.01, t+3.0);
+    padOsc.connect(padG); 
+    padG.connect(this.masterGain!); 
+    padOsc.start(t+0.5); 
+    padOsc.stop(t+3.5);
+  }
+
+  // --- 8. Confetti Celebration (🎉) ---
+  playConfetti() {
+    this.init();
+    const t = this.ctx!.currentTime;
+    
+    // Snare hollow pop - enhanced to be like a cannon pop
+    const thump = this.ctx!.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(150, t);
+    thump.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+    const thumpGain = this.ctx!.createGain();
+    thumpGain.gain.setValueAtTime(1, t);
+    thumpGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    thump.connect(thumpGain);
+    thumpGain.connect(this.masterGain!);
+    thump.start(t);
+    thump.stop(t + 0.2);
+
+    const noise = this.ctx!.createBufferSource(); 
+    noise.buffer = this.getNoiseBuffer(0.2);
+    const bandpass = this.ctx!.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 1000;
+    const ng = this.ctx!.createGain(); 
+    ng.gain.setValueAtTime(0.8, t); 
+    ng.gain.exponentialRampToValueAtTime(0.01, t+0.2);
+    noise.connect(bandpass); 
+    bandpass.connect(ng); 
+    ng.connect(this.masterGain!); 
+    noise.start(t);
+
+    // Random tinkles
+    for(let i=0; i<15; i++) {
+        const osc = this.ctx!.createOscillator(); 
+        osc.type = 'sine';
+        osc.frequency.value = 2000 + Math.random() * 3000;
+        const g = this.ctx!.createGain();
+        const start = t + 0.05 + Math.random() * 0.8;
+        g.gain.setValueAtTime(0, start); 
+        g.gain.linearRampToValueAtTime(0.05, start+0.01); 
+        g.gain.exponentialRampToValueAtTime(0.01, start+0.2);
+        
+        const panner = this.ctx!.createStereoPanner();
+        panner.pan.value = Math.random() * 2 - 1;
+        
+        osc.connect(g); 
+        g.connect(panner); 
+        panner.connect(this.masterGain!);
+        osc.start(start); 
+        osc.stop(start+0.3);
     }
   }
 
-  playPersonalBest() {
+  // --- 9. Perfect Day (✨) ---
+  playPerfectDay() {
     this.init();
-    // Trophy achievement sound, rising success tones
-    this.playSequence([
-      { freq: 523.25, type: 'triangle', duration: 0.12, delay: 0, vol: 0.3 },
-      { freq: 587.33, type: 'triangle', duration: 0.12, delay: 0.12, vol: 0.3 },
-      { freq: 659.25, type: 'triangle', duration: 0.12, delay: 0.24, vol: 0.3 },
-      { freq: 783.99, type: 'triangle', duration: 0.12, delay: 0.36, vol: 0.3 },
-      { freq: 1046.50, type: 'triangle', duration: 0.6, delay: 0.48, vol: 0.4 },
-    ]);
+    const t = this.ctx!.currentTime;
+    
+    // FM synth swell F4 -> A4
+    const carrier = this.ctx!.createOscillator(); 
+    carrier.type = 'sine';
+    carrier.frequency.setValueAtTime(349.23, t);
+    carrier.frequency.exponentialRampToValueAtTime(440, t+0.4);
+    
+    const mod = this.ctx!.createOscillator(); 
+    mod.type = 'sine'; 
+    mod.frequency.value = 200;
+    const modGain = this.ctx!.createGain(); 
+    modGain.gain.value = 300;
+    mod.connect(modGain); 
+    modGain.connect(carrier.frequency);
+
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.25, t+0.4); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+1.0);
+    
+    carrier.connect(g); 
+    g.connect(this.masterGain!);
+    
+    carrier.start(t); 
+    mod.start(t); 
+    carrier.stop(t+1.1); 
+    mod.stop(t+1.1);
   }
 
-  // --- Timer Sounds ---
-  
-  // Timer Started: Soft click
+  // --- 10. Timer Started (⏰) ---
   playTimerStart() {
     this.init();
-    this.playTone(800, 'sine', 0.1, 0.4, 0.01, 0.05);
+    const t = this.ctx!.currentTime;
+    // Dual stage clack
+    [0, 0.05].forEach(start => {
+      const noise = this.ctx!.createBufferSource(); 
+      noise.buffer = this.getNoiseBuffer(0.02);
+      const bp = this.ctx!.createBiquadFilter(); 
+      bp.type = 'bandpass'; 
+      bp.frequency.value = 1500;
+      const g = this.ctx!.createGain(); 
+      g.gain.setValueAtTime(0.6, t+start); 
+      g.gain.exponentialRampToValueAtTime(0.01, t+start+0.02);
+      noise.connect(bp); 
+      bp.connect(g); 
+      g.connect(this.masterGain!); 
+      noise.start(t+start);
+    });
   }
 
-  // Timer Paused: Gentle pause
+  // --- 11. Timer Paused (⏸) ---
   playTimerPause() {
     this.init();
-    this.playSequence([
-      { freq: 600, type: 'sine', duration: 0.1, delay: 0, vol: 0.3 },
-      { freq: 400, type: 'sine', duration: 0.15, delay: 0.1, vol: 0.3 },
-    ]);
+    const t = this.ctx!.currentTime;
+    const osc = this.ctx!.createOscillator(); 
+    osc.type = 'triangle'; 
+    osc.frequency.value = 130.81; // C3
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.4, t+0.01); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+    osc.connect(g); 
+    g.connect(this.masterGain!); 
+    osc.start(t); 
+    osc.stop(t+0.15);
   }
 
-  // Timer Resumed: short confirmation
+  // --- 12. Timer Resumed (▶) ---
   playTimerResume() {
     this.init();
-    this.playSequence([
-      { freq: 400, type: 'sine', duration: 0.1, delay: 0, vol: 0.2 },
-      { freq: 600, type: 'sine', duration: 0.15, delay: 0.1, vol: 0.3 },
-    ]);
+    const t = this.ctx!.currentTime;
+    const osc = this.ctx!.createOscillator(); 
+    osc.type = 'triangle'; 
+    osc.frequency.value = 196.00; // G3
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.4, t+0.01); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+    osc.connect(g); 
+    g.connect(this.masterGain!); 
+    osc.start(t); 
+    osc.stop(t+0.15);
   }
 
-  // Timer Completed: completion bell
+  // --- 13. Timer Finished (🔔) ---
   playTimerComplete() {
     this.init();
-    this.playSequence([
-      { freq: 523.25, type: 'triangle', duration: 0.2, delay: 0, vol: 0.3 },
-      { freq: 659.25, type: 'triangle', duration: 0.2, delay: 0.2, vol: 0.3 },
-      { freq: 1046.50, type: 'triangle', duration: 0.8, delay: 0.4, vol: 0.3 }, // lingering bell
-    ]);
+    const t = this.ctx!.currentTime;
+    // Brass bowl 432Hz with natural slow attack and long unbroken decay
+    [432, 434, 864].forEach((freq, i) => {
+        const osc = this.ctx!.createOscillator(); 
+        osc.type = 'sine'; 
+        osc.frequency.value = freq;
+        const g = this.ctx!.createGain(); 
+        g.gain.setValueAtTime(0, t);
+        const maxVol = i === 2 ? 0.05 : 0.2;
+        g.gain.linearRampToValueAtTime(maxVol, t+0.4); 
+        g.gain.exponentialRampToValueAtTime(0.001, t+2.0);
+        osc.connect(g); 
+        g.connect(this.masterGain!); 
+        osc.start(t); 
+        osc.stop(t+2.5);
+    });
   }
 
-  // Pomodoro completed
+  // --- 14. Pomodoro Work Session Complete (🍅) ---
   playPomodoroWorkComplete() {
     this.init();
-    this.playSequence([
-      { freq: 659.25, type: 'sine', duration: 0.15, delay: 0, vol: 0.4 },
-      { freq: 880, type: 'sine', duration: 0.5, delay: 0.15, vol: 0.4 },
-    ]);
+    const t = this.ctx!.currentTime;
+    // Cowbell approx
+    [540, 800].forEach(freq => {
+        const osc = this.ctx!.createOscillator(); 
+        osc.type = 'square'; 
+        osc.frequency.value = freq;
+        const g = this.ctx!.createGain(); 
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.15, t+0.01); 
+        g.gain.exponentialRampToValueAtTime(0.01, t+0.3);
+        osc.connect(g); 
+        g.connect(this.masterGain!); 
+        osc.start(t); 
+        osc.stop(t+0.4);
+    });
+    // Noise blast
+    const noise = this.ctx!.createBufferSource(); 
+    noise.buffer = this.getNoiseBuffer(0.1);
+    const g2 = this.ctx!.createGain(); 
+    g2.gain.setValueAtTime(0.3, t); 
+    g2.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+    noise.connect(g2); 
+    g2.connect(this.masterGain!); 
+    noise.start(t);
   }
 
-  // Break Started
+  // --- 15. Break Started (☕) ---
   playPomodoroBreakStart() {
     this.init();
-    this.playSequence([
-      { freq: 440, type: 'sine', duration: 0.2, delay: 0, vol: 0.2 },
-      { freq: 349.23, type: 'sine', duration: 0.6, delay: 0.2, vol: 0.2 }, // gentle drop
-    ]);
+    const t = this.ctx!.currentTime;
+    // Chime glissando
+    const freqs = [587.33, 880, 1174.66, 1479.98, 1760];
+    freqs.forEach((f, i) => {
+        const osc = this.ctx!.createOscillator(); 
+        osc.type = 'sine'; 
+        osc.frequency.value = f;
+        const g = this.ctx!.createGain(); 
+        const start = t + i*0.06;
+        g.gain.setValueAtTime(0, start); 
+        g.gain.linearRampToValueAtTime(0.1, start+0.02); 
+        g.gain.exponentialRampToValueAtTime(0.01, start+0.5);
+        osc.connect(g); 
+        g.connect(this.masterGain!); 
+        osc.start(start); 
+        osc.stop(start+0.6);
+    });
+    // Wave pad
+    const noise = this.ctx!.createBufferSource(); 
+    noise.buffer = this.getNoiseBuffer(1.0);
+    const nf = this.ctx!.createBiquadFilter(); 
+    nf.type = 'lowpass'; 
+    nf.frequency.value = 400;
+    const ng = this.ctx!.createGain(); 
+    ng.gain.setValueAtTime(0, t); 
+    ng.gain.linearRampToValueAtTime(0.2, t+0.3); 
+    ng.gain.exponentialRampToValueAtTime(0.01, t+1.0);
+    noise.connect(nf); 
+    nf.connect(ng); 
+    ng.connect(this.masterGain!); 
+    noise.start(t);
   }
 
-  // Break Complete
+  // --- 16. Break Complete () ---
   playPomodoroBreakComplete() {
     this.init();
-    this.playSequence([
-      { freq: 440, type: 'sine', duration: 0.15, delay: 0, vol: 0.3 },
-      { freq: 554.37, type: 'sine', duration: 0.15, delay: 0.15, vol: 0.3 },
-      { freq: 659.25, type: 'sine', duration: 0.5, delay: 0.3, vol: 0.4 },
-    ]);
+    const t = this.ctx!.currentTime;
+    // Whoosh up
+    const osc = this.ctx!.createOscillator(); 
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(100, t); 
+    osc.frequency.exponentialRampToValueAtTime(600, t+0.4);
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.2, t+0.4); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+0.5);
+    osc.connect(g); 
+    g.connect(this.masterGain!); 
+    osc.start(t); 
+    osc.stop(t+0.6);
+    
+    // Pop
+    const noise = this.ctx!.createBufferSource(); 
+    noise.buffer = this.getNoiseBuffer(0.05);
+    const ng = this.ctx!.createGain(); 
+    ng.gain.setValueAtTime(0, t+0.45); 
+    ng.gain.linearRampToValueAtTime(0.3, t+0.46); 
+    ng.gain.exponentialRampToValueAtTime(0.01, t+0.5);
+    noise.connect(ng); 
+    ng.connect(this.masterGain!); 
+    noise.start(t+0.45);
   }
 
-  // Countdown Sounds (last 3 seconds): Tick
+  // --- Extras ---
+  playNegativeFeedback() {
+    this.init(); 
+    const t = this.ctx!.currentTime;
+    const osc = this.ctx!.createOscillator(); 
+    osc.type = 'triangle'; 
+    osc.frequency.setValueAtTime(200, t); 
+    osc.frequency.exponentialRampToValueAtTime(150, t+0.3);
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t); 
+    g.gain.linearRampToValueAtTime(0.2, t+0.05); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+0.3);
+    osc.connect(g); 
+    g.connect(this.masterGain!); 
+    osc.start(t); 
+    osc.stop(t+0.4);
+  }
+
   playCountdownTick() {
-    this.init();
-    this.playTone(1000, 'sine', 0.05, 0.2, 0.01, 0.02);
+    this.init(); 
+    const t = this.ctx!.currentTime;
+    const osc = this.ctx!.createOscillator(); 
+    osc.type = 'triangle'; 
+    osc.frequency.value = 1000;
+    const g = this.ctx!.createGain(); 
+    g.gain.setValueAtTime(0, t); 
+    g.gain.linearRampToValueAtTime(0.1, t+0.01); 
+    g.gain.exponentialRampToValueAtTime(0.01, t+0.05);
+    osc.connect(g); 
+    g.connect(this.masterGain!); 
+    osc.start(t); 
+    osc.stop(t+0.1);
   }
 
   playCountdownFinish() {
-    this.init();
-    this.playSequence([
-      { freq: 880, type: 'sine', duration: 0.3, delay: 0, vol: 0.4 },
-    ]);
-  }
-
-  // Negative Feedback (missed after 12:00 AM)
-  playNegativeFeedback() {
-    this.init();
-    this.playSequence([
-      { freq: 300, type: 'triangle', duration: 0.2, delay: 0, vol: 0.2 },
-      { freq: 250, type: 'triangle', duration: 0.4, delay: 0.2, vol: 0.2 },
-    ]);
+    this.playTimerComplete();
   }
 }
 

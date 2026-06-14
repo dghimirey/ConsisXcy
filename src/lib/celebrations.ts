@@ -23,6 +23,7 @@ const notify = (event: CelebrationEvent) => {
 // 1. Routine Completion Celebration
 export const triggerRoutineCompletion = (el?: HTMLElement) => {
   audioSystem.playRoutineCompletion();
+  setTimeout(() => audioSystem.playConfetti(), 50);
   
   let origin = { x: 0.5, y: 0.5 };
   if (el) {
@@ -49,6 +50,8 @@ export const triggerRoutineCompletion = (el?: HTMLElement) => {
 // 2. Daily Completion Celebration
 export const triggerDailyCompletion = () => {
     audioSystem.playDailyCompletion();
+    setTimeout(() => audioSystem.playConfetti(), 300); // Overlay confetti slightly after Arpeggio
+
     const duration = 2500;
     const end = Date.now() + duration;
 
@@ -110,7 +113,12 @@ export const triggerPerfectWeek = () => {
 };
 
 export const triggerMilestone = (streak: number) => {
-    audioSystem.playMilestone(streak);
+    if (streak >= 100) audioSystem.play100DayStreak();
+    else if (streak >= 30) audioSystem.play30DayStreak();
+    else if (streak >= 7) audioSystem.play7DayStreak();
+    else audioSystem.playStreakMaintained();
+    
+    audioSystem.playConfetti();
     
     confetti({
         particleCount: 150,
@@ -124,14 +132,15 @@ export const triggerMilestone = (streak: number) => {
     
     let msg = "You're building something extraordinary.";
     if (streak === 7) msg = "One full week of consistency.";
-    else if (streak === 30) msg = "An entire month. Keep going.";
-    else if (streak === 365) msg = "A full year. Legendary consistency.";
+    else if (streak >= 30 && streak < 100) msg = "An entire month. Keep going.";
+    else if (streak >= 100) msg = "A massive milestone. Legendary consistency.";
 
     notify({ type: 'MILESTONE', message: `🔥 ${streak} Day Streak\n${msg}` });
 };
 
 export const triggerPersonalBest = () => {
     audioSystem.playPersonalBest();
+    audioSystem.playConfetti();
     
     confetti({
         particleCount: 200,
