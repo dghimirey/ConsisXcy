@@ -3,6 +3,9 @@ import { useTimerStore } from '../../store/useTimerStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, Plus, Minus, BellRing, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { audioSystem } from '../../lib/audio';
+import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 
 function formatTime(ms: number) {
   const totalSeconds = Math.ceil(ms / 1000); // ceil so it shows 1 when 0.1s left
@@ -18,14 +21,11 @@ function formatTime(ms: number) {
   return `${pad(minutes)}:${pad(seconds)}`;
 }
 
-const ALARM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
-
 export function TimerTab() {
   const { isRunning, start, pause, reset, getRemaining, targetDuration, setDuration, remainingTimeAtPause } = useTimerStore();
   const { soundEnabled, toggleSound } = useSettingsStore();
   const [remaining, setRemaining] = useState(getRemaining());
   const requestRef = useRef<number | undefined>(undefined);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Input states for setting timer
   const [inputHours, setInputHours] = useState(0);
@@ -34,27 +34,35 @@ export function TimerTab() {
   
   const [isFinished, setIsFinished] = useState(false);
 
-  useEffect(() => {
-    // Only set audioRef after mount to avoid server-side issues (though Vite is client side)
-    audioRef.current = new Audio(ALARM_SOUND);
-    audioRef.current.loop = true;
-    return () => {
-       if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-       }
-    }
-  }, []);
-
   const update = () => {
     const currentRemaining = getRemaining();
     setRemaining(currentRemaining);
+    
+    // Countdown tick for last 3 seconds
+    if (isRunning && currentRemaining > 0 && currentRemaining <= 3000) {
+        // play tick every second mark exactly
+        // to approximate, just relying on accurate audio loops or playing explicitly might be tricky via rAF,
+        // we can skip the manual tick here for simplicity to avoid overlapping/messy timing, keeping the finish clean.
+    }
     
     if (isRunning && currentRemaining <= 0) {
       if (!isFinished) {
          setIsFinished(true);
          pause();
-         if (audioRef.current && soundEnabled) audioRef.current.play().catch(console.error);
+         if (soundEnabled) {
+            audioSystem.playTimerComplete();
+            confetti({
+               particleCount: 80,
+               spread: 70,
+               origin: { y: 0.6 },
+               colors: ['#34D399', '#10B981', '#FFFFFF'],
+               zIndex: 1000
+            });
+            toast('Focus Session Complete! Great Work.', {
+               icon: '👏',
+               style: { borderRadius: '12px', background: '#27272A', color: '#fff' },
+            });
+         }
       }
     }
 
@@ -78,49 +86,32 @@ export function TimerTab() {
      setDuration(ms);
      setRemaining(ms);
      setIsFinished(false);
-     if (audioRef.current && soundEnabled) {
-         // Play silently to unlock audio context in Safari/Chrome
-         audioRef.current.volume = 0;
-         audioRef.current.play().then(() => {
-             audioRef.current?.pause();
-             if (audioRef.current) {
-                 audioRef.current.currentTime = 0;
-                 audioRef.current.volume = 1;
-             }
-         }).catch(console.error);
-     }
   };
 
   const handleStart = () => {
       start();
-      if (audioRef.current && remaining === targetDuration && soundEnabled) {
-         audioRef.current.volume = 0;
-         audioRef.current.play().then(() => {
-             audioRef.current?.pause();
-             if (audioRef.current) {
-                 audioRef.current.currentTime = 0;
-                 audioRef.current.volume = 1;
-             }
-         }).catch(e => e);
+      if (soundEnabled) {
+         if (remaining === targetDuration) {
+             audioSystem.playTimerStart();
+         } else {
+             audioSystem.playTimerResume();
+         }
       }
+  };
+
+  const handlePause = () => {
+      pause();
+      if (soundEnabled) audioSystem.playTimerPause();
   };
 
   const handleStopAlarm = () => {
       setIsFinished(false);
       reset();
-      if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-      }
+      setDuration(0); // return to edit view
   };
 
-  // Determine which view to show: Setting mode or Active mode
-  // If targetDuration is 0, or we are not running and remaining === targetDuration, we can allow editing.
-  // Actually, if we are not running and remaining == targetDuration we can show the setter.
-  // Wait, users might want to pause and resume.
   const canEdit = !isRunning && (remaining === targetDuration);
 
-  // If there's no target set, use the inputs.
   return (
     <div className="w-full flex flex-col items-center justify-center min-h-[400px]">
       <div className="bg-app-glass border border-app-border rounded-[32px] p-6 sm:p-8 md:p-12 w-full flex flex-col items-center shadow-lg relative overflow-hidden">
@@ -142,15 +133,15 @@ export function TimerTab() {
                animate={{ scale: 1, opacity: 1 }}
                className="flex flex-col items-center gap-6 text-center"
             >
-               <div className="w-24 h-24 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center animate-pulse">
+               <div className="w-24 h-24 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center animate-pulse">
                   <BellRing className="w-12 h-12" />
                </div>
-               <h2 className="text-3xl font-bold text-white">Time's Up!</h2>
+               <h2 className="text-3xl font-bold text-white">Focus Complete!</h2>
                <button 
                   onClick={handleStopAlarm}
                   className="px-8 py-4 bg-app-accent text-zinc-900 font-bold rounded-xl hover:opacity-90 transition-opacity mt-4"
                >
-                  Stop Alarm & Reset
+                  New Session
                </button>
             </motion.div>
         ) : (
@@ -241,7 +232,7 @@ export function TimerTab() {
                                 </button>
                             ) : (
                                 <button 
-                                onClick={pause}
+                                onClick={handlePause}
                                 className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center hover:bg-amber-500/20 transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)]"
                                 aria-label="Pause"
                                 >
@@ -252,10 +243,6 @@ export function TimerTab() {
                             <button 
                                 onClick={() => {
                                     reset();
-                                    if (audioRef.current) {
-                                        audioRef.current.pause();
-                                        audioRef.current.currentTime = 0;
-                                    }
                                     setDuration(0); // This unsets it and returns to "setting" view
                                 }}
                                 className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text-s hover:text-white hover:bg-app-surface/80 transition-colors"

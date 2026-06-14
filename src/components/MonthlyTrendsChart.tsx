@@ -56,21 +56,21 @@ export function MonthlyTrendsChart({ section = 'All' }: { section?: string }) {
           <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorPercentage" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00C853" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#00C853" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#9FE870" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#9FE870" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <XAxis 
               dataKey="date" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fontSize: 10, fill: '#6b7280', fontFamily: 'monospace' }} 
+              tick={{ fontSize: 10, fill: '#8A8A8A', fontFamily: 'monospace' }} 
               minTickGap={20}
             />
             <YAxis 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fontSize: 10, fill: '#6b7280', fontFamily: 'monospace' }}
+              tick={{ fontSize: 10, fill: '#8A8A8A', fontFamily: 'monospace' }}
               domain={[0, 100]}
               tickFormatter={(value) => `${value}%`}
             />
@@ -93,7 +93,7 @@ export function MonthlyTrendsChart({ section = 'All' }: { section?: string }) {
             <Area 
               type="monotone" 
               dataKey="percentage" 
-              stroke="#00C853" 
+              stroke="#9FE870" 
               strokeWidth={2}
               fillOpacity={1} 
               fill="url(#colorPercentage)" 

@@ -3,15 +3,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import confetti from 'canvas-confetti';
 import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections, fetchRestrictedTasks, fetchRestrictedCompletions, toggleRestrictedCompletion } from '../services/api';
 import { Routine, Completion, Category, Section, RestrictedTask, RestrictedCompletion } from '../types';
-import { HabitHeatmap } from '../components/HabitHeatmap';
-import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { StreakCounter } from '../components/StreakCounter';
 import { RestrictedTasksList } from '../components/RestrictedTasksList';
+import { HabitHeatmap } from '../components/HabitHeatmap';
+import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { getIcon } from '../lib/icons';
-import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone } from '../lib/consistency';
+import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone, getDayCompletionStatus } from '../lib/consistency';
+import { triggerRoutineCompletion, triggerDailyCompletion, triggerMilestone, triggerPerfectWeek, triggerPersonalBest } from '../lib/celebrations';
+import { audioSystem } from '../lib/audio';
+import dayjs from 'dayjs';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -67,6 +69,40 @@ export default function Dashboard() {
 
   const activeSections = Object.values(routinesBySection).filter((s: any) => s.routines.length > 0);
 
+  const handleCompletion = (el: HTMLElement | null, routineId: string, newStatus: string) => {
+    if (newStatus !== 'COMPLETED') return;
+
+    if (el) triggerRoutineCompletion(el);
+
+    // Predict if day will be completed
+    const currentDayStatus = getDayCompletionStatus(todayStr, routines, categoriesData, completions, 'All');
+    
+    // Will it be completed now?
+    const isAlreadyCompleted = getDayStatus(routineId) === 'COMPLETED';
+    if (isAlreadyCompleted) return; // shouldn't happen but defensive
+
+    const pendingRoutines = currentDayStatus.totalTasks - currentDayStatus.completedTasks;
+    if (pendingRoutines === 1) { 
+        setTimeout(() => triggerDailyCompletion(), 1000);
+
+        // Also check global streak
+        const tempCompletions = [...completions, { routineId, date: todayStr, status: 'COMPLETED' } as any];
+        const newStreaks = calculateGlobalStreaks(routines, categoriesData, tempCompletions);
+        
+        if (newStreaks.current > 0) {
+            const ms = newStreaks.current;
+            if ([3, 7, 14, 30, 50, 100, 365].includes(ms)) {
+                setTimeout(() => triggerMilestone(ms), 2000);
+            } else if (ms > userGlobalStreaks.longest && userGlobalStreaks.longest > 0) {
+                setTimeout(() => triggerPersonalBest(), 2000);
+            } else {
+                // If it happened to be Sunday, perfect week? This requires logic we can omit for now 
+                // unless we want to calculate week completions. Let's omit Perfect Week checking here for simplicity 
+                // or just trigger Perfect Day instead. Daily completion ALREADY says "All Routines Finished".
+            }
+        }
+    }
+  };
 
   // Mark Completion Mutation with Optimistic Updates
   const mutation = useMutation({
@@ -111,43 +147,6 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['streaks'] });
     },
   });
-
-  const triggerConfetti = (isSectionComplete: boolean) => {
-    if (isSectionComplete) {
-      const duration = 3000;
-      const end = Date.now() + duration;
-
-      const frame = () => {
-        confetti({
-          particleCount: 5,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00']
-        });
-        confetti({
-          particleCount: 5,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#c0ff00', '#ffffff', '#a8e6cf', '#ffdd00']
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      };
-      frame();
-    } else {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#34d399', '#ffffff'],
-        zIndex: 1000
-      });
-    }
-  };
 
   const getDayStatus = (routineId: string) => {
     return completions.find(c => c.routineId === routineId && new Date(c.date).toISOString().split('T')[0] === todayStr)?.status;
@@ -265,15 +264,9 @@ export default function Dashboard() {
                                  
                                  mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                  if (newStatus === 'COMPLETED' && !isCompleted) {
-                                     // Check if this completes the section
-                                     const completesSection = sectionRoutines.every((r: any) => 
-                                         r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
-                                     );
-                                     if (completesSection) {
-                                         triggerConfetti(true);
-                                     } else {
-                                         triggerConfetti(false);
-                                     }
+                                     handleCompletion(e.currentTarget, routine.id, newStatus);
+                                 } else if (newStatus === 'MISSED' && isCompleted) {
+                                     audioSystem.playNegativeFeedback();
                                  }
                               }}
                           >
@@ -287,14 +280,9 @@ export default function Dashboard() {
                                     mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                     
                                     if (newStatus === 'COMPLETED' && !isCompleted) {
-                                        const completesSection = sectionRoutines.every((r: any) => 
-                                            r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
-                                        );
-                                        if (completesSection) {
-                                            triggerConfetti(true);
-                                        } else {
-                                            triggerConfetti(false);
-                                        }
+                                        handleCompletion(e.currentTarget, routine.id, newStatus);
+                                    } else if (newStatus === 'MISSED' && isCompleted) {
+                                        audioSystem.playNegativeFeedback();
                                     }
                                 }}
                                 className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm ${isCompleted ? 'bg-emerald-500 border-emerald-400 text-constant-white shadow-[0_0_8px_rgba(16,185,129,0.4)] scale-110' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70 hover:scale-105'}`}
@@ -335,14 +323,7 @@ export default function Dashboard() {
                                                           const newStatus = newVal >= totalTarget ? 'COMPLETED' : (newVal > 0 ? 'PARTIAL' : 'MISSED');
                                                           mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                                           if (newStatus === 'COMPLETED' && !isCompleted) {
-                                                              const completesSection = sectionRoutines.every((r: any) => 
-                                                                  r.id === routine.id || getDayStatus(r.id) === 'COMPLETED'
-                                                              );
-                                                              if (completesSection) {
-                                                                  triggerConfetti(true);
-                                                              } else {
-                                                                  triggerConfetti(false);
-                                                              }
+                                                              handleCompletion(e.currentTarget, routine.id, newStatus);
                                                           }
                                                       }
                                                   }

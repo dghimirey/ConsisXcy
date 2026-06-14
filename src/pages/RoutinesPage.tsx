@@ -9,6 +9,7 @@ import { Modal } from '../components/Modal';
 import { useManagementMutations } from '../hooks/useManagementMutations';
 import { RoutineItem } from '../components/RoutineItem';
 import { IconPicker } from '../components/IconPicker';
+import { getIcon } from '../lib/icons';
 import toast from 'react-hot-toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -93,7 +94,7 @@ export default function RoutinesPage() {
           </button>
         ) : (
           <button 
-            onClick={() => setEditingRestricted({ name: '', icon: '🚫', isActive: true })}
+            onClick={() => setEditingRestricted({ name: '', icon: 'Circle', isActive: true, schedule: [0,1,2,3,4,5,6] })}
             className="flex items-center justify-center gap-2 bg-rose-500 text-white hover:bg-rose-400 shrink-0 font-medium px-5 py-3 md:py-2.5 rounded-xl transition-all shadow-md w-full md:w-auto"
           >
              <Plus className="w-4 h-4 text-white" strokeWidth={3} />
@@ -201,11 +202,20 @@ export default function RoutinesPage() {
                    <p className="text-app-text-s">No restricted tasks found. Create one to add a habit you want to avoid.</p>
                  </div>
               ) : (
-                 restrictedTasks.map((task: RestrictedTask) => (
+                 restrictedTasks.map((task: RestrictedTask) => {
+                    const IconComponent = getIcon(task.icon);
+                    return (
                     <div key={task.id} className="flex items-center justify-between p-3 md:p-4 bg-app-surface/40 hover:bg-app-surface/60 border border-app-border rounded-xl transition-colors">
                        <div className="flex items-center gap-3">
-                          <span className="text-xl">{task.icon}</span>
-                          <span className="font-medium text-white">{task.name}</span>
+                          <IconComponent className="w-5 h-5 opacity-90 text-app-text-s" />
+                          <div className="flex flex-col">
+                             <span className="font-medium text-white">{task.name}</span>
+                             {task.schedule && task.schedule.length > 0 && (
+                               <span className="text-[10px] md:text-xs text-app-text-s/80 mt-0.5">
+                                 {DAYS.filter((_, i) => task.schedule?.includes(i)).join(' ')}
+                               </span>
+                             )}
+                          </div>
                        </div>
                        <div className="flex items-center gap-1">
                           <button onClick={() => setEditingRestricted(task)} className="min-w-[40px] min-h-[40px] flex items-center justify-center text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
@@ -216,7 +226,7 @@ export default function RoutinesPage() {
                           </button>
                        </div>
                     </div>
-                 ))
+                 )})
               )}
            </div>
         )}
@@ -554,6 +564,28 @@ export default function RoutinesPage() {
                 value={editingRestricted?.icon}
                 onChange={(icon) => setEditingRestricted((r: any) => ({...r, icon}))}
              />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Schedule</label>
+            <div className="flex flex-wrap gap-2">
+              {DAYS.map((day, idx) => {
+                const isActive = editingRestricted?.schedule?.includes(idx);
+                return (
+                  <button 
+                    key={idx}
+                    onClick={() => {
+                      const sched = editingRestricted?.schedule || [];
+                      const newSched = isActive ? sched.filter(d => d !== idx) : [...sched, idx];
+                      setEditingRestricted((r: any) => ({...r, schedule: newSched}));
+                    }}
+                    className={`flex-1 min-w-[40px] aspect-[2/1] rounded-lg border-2 flex items-center justify-center text-[11px] uppercase tracking-wider font-semibold transition-all ${isActive ? 'bg-app-accent/10 border-app-accent text-app-accent' : 'bg-app-bg border-transparent text-app-text-s hover:bg-app-surface hover:text-white'}`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Modal>

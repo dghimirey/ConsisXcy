@@ -22,6 +22,31 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
     return getDayCompletionStatus(date.format('YYYY-MM-DD'), routines, categories, completions, section);
   };
 
+  // Calculate current active streak set for highlighting
+  const currentStreakDates = new Set<string>();
+  if (routines.length > 0) {
+    let d = dayjs().subtract(1, 'day'); // start checking from yesterday
+    while (true) {
+      const res = getDayStatus(d);
+      if (res.status === 'ALL' && res.totalTasks > 0) {
+        currentStreakDates.add(d.format('YYYY-MM-DD'));
+        d = d.subtract(1, 'day');
+      } else if (res.status === 'PENDING' || res.status === 'NONE') {
+        // "NONE" means no tasks. We should skip over it to see if streak continues before
+        d = d.subtract(1, 'day');
+      } else {
+        break; // missed or some
+      }
+      
+      // Stop condition if we check back too far (prevent infinite loops)
+      if (dayjs().diff(d, 'day') > 1000) break;
+    }
+    // Check if today is completed too
+    if (getDayStatus(dayjs()).status === 'ALL' && getDayStatus(dayjs()).totalTasks > 0) {
+       currentStreakDates.add(dayjs().format('YYYY-MM-DD'));
+    }
+  }
+
   return (
     <div className="bg-app-surface border border-app-border p-4 md:p-6 rounded-2xl w-full">
       <div className="flex justify-between items-center mb-4">
@@ -57,40 +82,46 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
            const percentage = result.percentage;
            const isToday = day.isSame(dayjs(), 'day');
            
-           let bgClass = 'bg-app-border/30 hover:bg-app-border/50'; // NONE
+           let bgClass = 'bg-[#1a1a1a] border border-[#2a2a2a] text-app-text-s/30 z-10 hover:bg-[#222222] hover:scale-[1.05]'; // NONE
            
            if (status !== 'NONE') {
              if (percentage === 100) {
-               // Deep green for full accomplishment
-               bgClass = 'bg-gradient-to-br from-[#00C853] to-[#00E676] border border-[#69F0AE]/70 shadow-[0_0_12px_rgba(0,200,83,0.6),inset_0_1px_rgba(255,255,255,0.2)] hover:shadow-[0_0_20px_rgba(0,200,83,0.8)] z-20';
-             } else if (percentage >= 75) {
-               // Light green / bright green
-               bgClass = 'bg-gradient-to-br from-[#7CB342] to-[#8BC34A] border border-[#AED581]/60 shadow-[0_0_8px_rgba(139,195,74,0.5)] hover:shadow-[0_0_14px_rgba(139,195,74,0.7)] z-10';
-             } else if (percentage >= 50) {
-               // Yellowish / amber (motivating transition)
-               bgClass = 'bg-gradient-to-br from-[#FFB300] to-[#FFC107] border border-[#FFD54F]/60 shadow-[0_0_8px_rgba(255,193,7,0.5)] hover:shadow-[0_0_14px_rgba(255,193,7,0.7)] z-10';
+               // Perfect Day (100%) - Premium emerald green
+               bgClass = 'bg-[#16A34A] border-none text-white font-bold shadow-[0_0_12px_rgba(22,163,74,0.4)] hover:shadow-[0_0_16px_rgba(22,163,74,0.6)] z-20 hover:scale-[1.05]';
+             } else if (percentage >= 76) {
+               // 76-99% Completion - Fresh green
+               bgClass = 'bg-[#4ADE80] border-none text-[#022c22] font-semibold z-10 hover:scale-[1.05]';
+             } else if (percentage >= 51) {
+               // 51-75% Completion - Soft orange
+               bgClass = 'bg-[#FB923C] border-none text-[#431407] font-medium z-10 hover:scale-[1.05]';
+             } else if (percentage >= 26) {
+               // 26-50% Completion - Rich amber
+               bgClass = 'bg-[#F59E0B] border-none text-[#451a03] font-medium z-10 hover:scale-[1.05]';
              } else if (percentage > 0) {
-               // Orange / deep orange (warning but still progress)
-               bgClass = 'bg-gradient-to-br from-[#FF6F00] to-[#FF9800] border border-[#FFB74D]/60 shadow-[0_0_6px_rgba(255,152,0,0.45)] hover:shadow-[0_0_12px_rgba(255,152,0,0.65)] z-10';
+               // 1-25% Completion - Warm yellow
+               bgClass = 'bg-[#FBBF24] border-none text-[#451a03] font-medium z-10 hover:scale-[1.05]';
              } else if (isToday || day.isAfter(dayjs(), 'day')) {
                // Not passed yet (Pending / no progress today or future)
-               bgClass = 'bg-app-border/30 hover:bg-app-border/50 border border-app-border border-dashed';
+               bgClass = 'bg-transparent border border-app-border/50 border-dashed text-app-text-s/50 hover:border-app-border hover:scale-[1.05]';
              } else {
-               // Red for 0% strictly for missed/passed days
-               bgClass = 'bg-gradient-to-br from-[#C62828] to-[#D32F2F] border border-[#EF9A9A]/50 shadow-[0_0_5px_rgba(211,47,47,0.4)] hover:shadow-[0_0_10px_rgba(211,47,47,0.6)] z-10';
+               // 0% strictly for missed/passed days - Red
+               bgClass = 'bg-[#EF4444] border-none text-white font-bold z-10 hover:scale-[1.05] shadow-[0_0_8px_rgba(239,68,68,0.25)]';
              }
            }
+           
+           const isPartOfStreak = currentStreakDates.has(day.format('YYYY-MM-DD'));
            
            return (
              <div 
                key={day.format('YYYY-MM-DD')} 
-               className={`aspect-square rounded-md flex flex-col items-center justify-center relative hover:scale-[1.15] transition-all duration-300 cursor-pointer ${bgClass} ${isToday && status === 'NONE' ? 'ring-1 ring-app-accent/50' : ''}`}
+               className={`aspect-square rounded-[8px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer ${bgClass} ${isToday ? 'ring-1 ring-white/50 ring-offset-1 ring-offset-app-surface z-30' : isPartOfStreak ? 'ring-1 ring-[#16A34A]/80 ring-offset-1 ring-offset-app-surface z-20 shadow-[0_0_8px_rgba(22,163,74,0.25)]' : ''}`}
                title={`${day.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : percentage + '% Complete'}`}
              >
-                <span className={`text-[10px] font-mono flex items-center justify-center w-full h-full ${status === 'NONE' ? 'text-app-text-s' : 'text-white font-medium drop-shadow-md'}`}>
+                <span className={`text-[10px] font-mono flex items-center justify-center w-full h-full text-center relative z-10`}>
                   {day.format('D')}
                 </span>
-                {isToday && <div className={`absolute bottom-0.5 w-[3px] h-[3px] rounded-full ${status === 'NONE' ? 'bg-app-accent' : 'bg-white drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]'}`}/>}
+                {/* Optional subtle indicator for 100% or streak record */}
+                {isPartOfStreak && percentage === 100 && !isToday && <div className="absolute top-1 right-1 w-1 h-1 rounded-full bg-white/60 animate-pulse drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]" />}
              </div>
            );
          })}

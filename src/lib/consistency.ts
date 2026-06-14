@@ -180,7 +180,7 @@ export function calculateGlobalStreaks(
   const isAtRisk = !todayCompleted && todayResult.totalTasks > 0;
 
   return { 
-    current: currentStreak, 
+    current: currentStreak + (todayCompleted ? 1 : 0), 
     longest: Math.max(longestStreak, currentStreak + (todayCompleted ? 1 : 0)), 
     isAtRisk, 
     todayCompleted,

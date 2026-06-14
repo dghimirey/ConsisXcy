@@ -6,13 +6,13 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 
-  --color-app-bg: #050505;
-  --color-app-surface: #0f1115;
+  --color-app-bg: #080808;
+  --color-app-surface: #111111;
   --color-app-glass: rgba(255, 255, 255, 0.03);
   --color-app-border: rgba(255, 255, 255, 0.08);
-  --color-app-accent: #c0ff00;
+  --color-app-accent: #9FE870;
   --color-app-text-p: #ffffff;
-  --color-app-text-s: #888888;
+  --color-app-text-s: #8a8a8a;
 }
 
 @layer base {

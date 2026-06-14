@@ -4,16 +4,26 @@ import React from 'react';
 export type IconName = keyof typeof icons;
 
 export const AVAILABLE_ICONS: IconName[] = [
-  'Activity', 'AlarmClock', 'ArrowUp', 'Book', 'BookOpen', 'Briefcase', 'Calendar', 
-  'Camera', 'Check', 'CheckCircle', 'CheckSquare', 'ChevronDown', 'ChevronRight', 
-  'ChevronsRight', 'Circle', 'Clock', 'Code', 'Coffee', 'Crosshair', 'Dumbbell', 
-  'Edit2', 'Eye', 'FileText', 'Flame', 'Flag', 'Folder', 'Footprints', 'Globe', 
-  'Heart', 'Home', 'Image', 'Layers', 'Layout', 'List', 'Map', 'MessageCircle', 
-  'MessageSquare', 'Mic', 'Monitor', 'Moon', 'Music', 'PenTool', 'Phone', 'Play', 
-  'Plus', 'Radio', 'RotateCcw', 'Search', 'Settings', 'Settings2', 'Shield', 
-  'ShoppingBag', 'ShoppingCart', 'Smartphone', 'Smile', 'Speaker', 'Star', 'Sun', 
-  'Sunrise', 'Sunset', 'Target', 'Terminal', 'ThumbsUp', 'Timer', 'Trash2', 'TrendingUp', 
-  'Trophy', 'Tv', 'User', 'Users', 'Video', 'Volume2', 'Watch', 'Wifi', 'Zap'
+  'Activity', 'AlarmClock', 'AlertCircle', 'AlertTriangle', 'Apple', 'ArrowUp', 
+  'Ban', 'Banknote', 'BatteryCharging', 'Bed', 'BedDouble', 'Beer', 'Bell', 'Bike', 'Bitcoin', 'Book', 'BookOpen', 'Brain', 'Briefcase', 'Brush', 'Bus', 
+  'Calculator', 'Calendar', 'Camera', 'Car', 'Carrot', 'Check', 'CheckCircle', 'CheckSquare', 'ChefHat', 'ChevronDown', 'ChevronRight', 'ChevronsRight', 'Cigarette', 'Circle', 'CircleOff', 'Clapperboard', 'Clock', 'Cloud', 'CloudLightning', 'CloudMoon', 'CloudRain', 'CloudSun', 'Code', 'Code2', 'Coffee', 'Coins', 'Cookie', 'CreditCard', 'Croissant', 'Crosshair', 
+  'DollarSign', 'Droplet', 'Dumbbell', 
+  'Edit2', 'Eye', 'EyeOff', 
+  'Facebook', 'FileText', 'Fish', 'Flag', 'Flame', 'Flower', 'Flower2', 'Folder', 'Footprints', 
+  'Gamepad', 'Gamepad2', 'Ghost', 'Gift', 'GlassWater', 'Globe', 'GraduationCap', 
+  'Hammer', 'Headphones', 'Heart', 'HeartPulse', 'Home', 
+  'Image', 'Instagram', 
+  'Key', 'Keyboard', 
+  'Laptop', 'Layers', 'Layout', 'Leaf', 'Lightbulb', 'List', 'Lock', 
+  'Mail', 'Map', 'Martini', 'MessageCircle', 'MessageSquare', 'Mic', 'MicOff', 'Microscope', 'Monitor', 'Moon', 'MoonStar', 'Mouse', 'Music', 
+  'Palmtree', 'Palette', 'Pen', 'PenTool', 'Phone', 'PhoneOff', 'PiggyBank', 'Pill', 'Pizza', 'Plane', 'Play', 'Plus', 'Printer', 
+  'Radio', 'RotateCcw', 
+  'Salad', 'Sandwich', 'Scissors', 'Search', 'Settings', 'Settings2', 'Shield', 'ShieldAlert', 'Ship', 'ShoppingBag', 'ShoppingCart', 'Smartphone', 'Smile', 'Snowflake', 'Speaker', 'Sprout', 'Star', 'Stethoscope', 'Sun', 'Sunrise', 'Sunset', 'Syringe', 
+  'Tablet', 'Target', 'Tent', 'Terminal', 'ThumbsDown', 'ThumbsUp', 'Ticket', 'Timer', 'Train', 'Trash', 'Trash2', 'TrendingDown', 'TrendingUp', 'Trophy', 'Tv', 'Twitter', 
+  'Unlock', 'User', 'Users', 'Utensils', 'UtensilsCrossed', 
+  'Video', 'VideoOff', 'Volume2', 'VolumeX', 
+  'Wallet', 'Watch', 'Wifi', 'WifiOff', 'Wind', 'Wine', 'Wrench', 
+  'X', 'XCircle', 'XSquare', 'Youtube', 'Zap'
 ];
 
 export function getIcon(name: string | null | undefined): React.ElementType {

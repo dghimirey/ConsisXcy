@@ -3,6 +3,9 @@ import { usePomodoroStore, PomodoroPhase } from '../../store/usePomodoroStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, FastForward, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { audioSystem } from '../../lib/audio';
+import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 
 function formatTime(ms: number) {
   const totalSeconds = Math.ceil(ms / 1000);
@@ -10,8 +13,6 @@ function formatTime(ms: number) {
   const seconds = totalSeconds % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
-
-const ALARM_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
 export function PomodoroTab() {
   const { 
@@ -36,7 +37,6 @@ export function PomodoroTab() {
 
   const [remaining, setRemaining] = useState(getRemaining());
   const requestRef = useRef<number | undefined>(undefined);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   // Settings state
@@ -44,24 +44,26 @@ export function PomodoroTab() {
   const [sShort, setSShort] = useState(shortBreakDuration / 60000);
   const [sLong, setSLong] = useState(longBreakDuration / 60000);
 
-  useEffect(() => {
-    audioRef.current = new Audio(ALARM_SOUND);
-    return () => {
-       if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-       }
-    }
-  }, []);
-
   const update = () => {
     const currentRemaining = getRemaining();
     setRemaining(currentRemaining);
     
     if (isRunning && currentRemaining <= 0) {
-      if (audioRef.current && soundEnabled) {
-          audioRef.current.volume = 1;
-          audioRef.current.play().catch(console.error);
+      if (soundEnabled) {
+          if (phase === 'focus') {
+             audioSystem.playPomodoroWorkComplete();
+             confetti({
+                particleCount: 50,
+                spread: 60,
+                origin: { y: 0.6 },
+                colors: ['#34D399', '#FFFFFF'],
+                zIndex: 1000
+             });
+             toast('Focus Session Complete', { icon: '🎯', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
+          } else {
+             audioSystem.playPomodoroBreakComplete();
+             toast('Ready to focus again?', { icon: '☕', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
+          }
       }
       completePhase();
     }
@@ -83,16 +85,23 @@ export function PomodoroTab() {
 
   const handleStart = () => {
       start();
-      if (audioRef.current && soundEnabled) {
-         audioRef.current.volume = 0;
-         audioRef.current.play().then(() => {
-             audioRef.current?.pause();
-             if (audioRef.current) {
-                 audioRef.current.currentTime = 0;
-                 audioRef.current.volume = 1;
+      if (soundEnabled) {
+         if (remaining === currentDuration) {
+             if (phase === 'focus') {
+                audioSystem.playTimerStart();
+             } else {
+                audioSystem.playPomodoroBreakStart();
+                toast('Time for a break', { icon: '🧘', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
              }
-         }).catch(e => e);
+         } else {
+             audioSystem.playTimerResume();
+         }
       }
+  };
+
+  const handlePause = () => {
+      pause();
+      if (soundEnabled) audioSystem.playTimerPause();
   };
 
   const handleSaveSettings = () => {
@@ -225,7 +234,7 @@ export function PomodoroTab() {
                 </button>
             ) : (
                 <button 
-                onClick={pause}
+                onClick={handlePause}
                 className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-app-surface border border-app-border flex items-center justify-center hover:bg-app-surface/80 transition-all hover:scale-105"
                 >
                     <Pause className={`w-6 h-6 md:w-8 md:h-8 ${phaseColor}`} />

@@ -19,6 +19,7 @@ export interface RestrictedTask {
   name: string;
   icon?: string | null;
   isActive: boolean;
+  schedule?: number[];
   createdAt: string;
 }
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Flame, Trophy, Clock, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
-import { getMilestone } from '../lib/consistency';
+import { motion, AnimatePresence } from 'motion/react';
+import { Flame, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import dayjs from 'dayjs';
 
 export function StreakCounter({ currentStreak, longestStreak, isAtRisk, todayCompleted, todayPercentage }: { currentStreak: number, longestStreak: number, isAtRisk: boolean, todayCompleted: boolean, todayPercentage: number }) {
@@ -19,136 +18,119 @@ export function StreakCounter({ currentStreak, longestStreak, isAtRisk, todayCom
       const h = Math.floor(diffStr / 3600);
       const m = Math.floor((diffStr % 3600) / 60);
       
-      return `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m left`;
+      return `${h}h ${m}m`;
     };
 
     setTimeLeft(calculateTimeLeft());
     const interval = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
-    }, 60000); // update every minute
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [todayCompleted]);
 
+  // Motivational message based on streak
+  let message = "Keep going.";
+  if (currentStreak === 0) message = "Time to build a new habit.";
+  else if (currentStreak < 3) message = "You're building momentum.";
+  else if (currentStreak < 7) message = "Great consistency this week.";
+  else if (currentStreak < 30) message = "You're on a roll. Don't break the chain.";
+  else message = "Incredible dedication. You're unstoppable.";
+
   return (
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-8 md:mb-10">
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex flex-col gap-2 mb-2 relative z-10 w-full">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-app-accent shrink-0" />
-              <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate">Current Streak</h3>
+    <div className="mb-8 md:mb-12">
+      <div className="bg-app-surface border border-app-border rounded-[20px] p-6 sm:p-8 md:p-10 relative overflow-hidden group">
+        
+        {/* Subtle Background Glow */}
+        <div className={`absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.03] pointer-events-none transition-colors duration-1000 -translate-y-1/2 translate-x-1/3 ${todayCompleted ? 'bg-app-accent' : isAtRisk ? 'bg-yellow-500' : 'bg-white'}`} />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col gap-4">
+            {/* Header */}
+            <div className="flex items-center gap-2 text-app-text-s">
+              <motion.div 
+                animate={todayCompleted ? { opacity: [0.7, 1, 0.7], filter: ['drop-shadow(0px 0px 4px rgba(159,232,112,0.3))', 'drop-shadow(0px 0px 12px rgba(159,232,112,0.8))', 'drop-shadow(0px 0px 4px rgba(159,232,112,0.3))'] } : {}} 
+                transition={{ duration: 3, ease: "easeInOut", repeat: todayCompleted ? Infinity : 0 }}
+              >
+                <Flame className={`w-4 h-4 sm:w-5 sm:h-5 ${todayCompleted ? 'text-app-accent' : 'text-app-text-s'}`} />
+              </motion.div>
+              <h3 className="text-xs sm:text-sm font-mono tracking-wide uppercase">Current Streak</h3>
             </div>
-            
-            {todayCompleted ? (
-               <div className="flex flex-col gap-1 mt-1">
-                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 w-fit">
-                   <CheckCircle2 className="w-3.5 h-3.5" />
-                   <span className="text-[10px] sm:text-xs font-mono font-medium tracking-wide">Goal Completed</span>
-                 </div>
-                 <span className="text-[10px] text-app-text-s font-mono pl-1 mt-1">Tomorrow: {currentStreak + 1} Day Streak</span>
-               </div>
-            ) : isAtRisk ? (
-               <div className="flex flex-col gap-1 mt-1">
-                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 w-fit">
-                   <AlertTriangle className="w-3.5 h-3.5" />
-                   <span className="text-[10px] sm:text-xs font-mono font-medium tracking-wide">Today's Goal: {todayPercentage}%</span>
-                 </div>
-                 <span className="text-[10px] text-app-text-s font-mono pl-1 mt-1">{timeLeft}</span>
-               </div>
-            ) : (
-               <div className="flex flex-col gap-1 mt-1">
-                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-app-surface/50 border border-app-border text-app-text-s w-fit">
-                   <AlertCircle className="w-3.5 h-3.5" />
-                   <span className="text-[10px] sm:text-xs font-mono font-medium tracking-wide">Today's Goal: {todayPercentage}%</span>
-                 </div>
-                 {todayPercentage === 0 && <span className="text-[10px] text-app-text-s font-mono pl-1 mt-1 font-medium text-white/50">Rest day / No tasks</span>}
-                 {todayPercentage > 0 && <span className="text-[10px] text-app-text-s font-mono pl-1 mt-1">{timeLeft}</span>}
-               </div>
-            )}
+
+            {/* Main Stats */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-baseline gap-2">
+                <motion.span 
+                  key={`streak-${currentStreak}`}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  className="text-5xl sm:text-6xl md:text-7xl font-display font-medium text-white tracking-tight"
+                >
+                  {currentStreak}
+                </motion.span>
+                <span className="text-lg sm:text-xl font-mono text-app-text-s">Days</span>
+              </div>
+              <p className="text-sm sm:text-base text-app-text-s tracking-wide">
+                {message}
+              </p>
+            </div>
           </div>
 
-          
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10 mt-2">
-            <motion.p 
-              key={`current-text-${currentStreak}`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
-              {currentStreak} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </motion.p>
-              {currentStreak > 0 && (() => {
-               const milestone = getMilestone(currentStreak);
-               const progress = Math.min(100, (currentStreak / milestone.target) * 100);
-               const daysAway = milestone.target - currentStreak;
-               let encouragingMessage = '';
-               if (daysAway === 1) encouragingMessage = `Only 1 day away from a ${milestone.target}-day streak!`;
-               else if (longestStreak > 0 && currentStreak === longestStreak) encouragingMessage = "New personal best coming soon!";
-               else if (currentStreak > 3 && currentStreak % 3 === 0) encouragingMessage = "Don't break the chain!";
+          {/* Status Panel */}
+          <div className="flex flex-col gap-3 min-w-[200px]">
+            <AnimatePresence mode="popLayout">
+              {todayCompleted ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center gap-2 text-app-accent">
+                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-sm sm:text-base font-medium">Goal Completed</span>
+                  </div>
+                  <span className="text-xs sm:text-sm font-mono text-app-text-s">All assigned tasks finished</span>
+                </motion.div>
+              ) : isAtRisk ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center gap-2 text-yellow-500">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-sm sm:text-base font-medium">At Risk</span>
+                  </div>
+                  <span className="text-xs sm:text-sm font-mono text-app-text-s">{timeLeft} left to complete</span>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center gap-2 text-app-text-s">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-sm sm:text-base font-medium">Goal Pending</span>
+                  </div>
+                  {todayPercentage === 0 ? (
+                    <span className="text-xs sm:text-sm font-mono text-app-text-s">Rest day or no tasks yet</span>
+                  ) : (
+                    <span className="text-xs sm:text-sm font-mono text-app-text-s">{timeLeft} remaining</span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-               return (
-                  <motion.div 
-                      key={`current-badge-${currentStreak}`}
-                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
-                      animate={{ scale: 1, x: 0, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className={`mb-1 sm:mb-2 flex flex-col gap-1.5 ${milestone.textColor}`}>
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-wide">
-                          <span>{milestone.icon}</span> 
-                          {milestone.name && <span className="font-semibold">{milestone.name} Goal</span>}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                              <div className="w-16 sm:w-24 border border-app-border h-1.5 sm:h-2 bg-black/30 rounded-full overflow-hidden">
-                                  <div className={`h-full ${milestone.barColor}`} style={{ width: `${progress}%` }} />
-                              </div>
-                               <span className="text-[10px] sm:text-xs font-mono opacity-70">{currentStreak}/{milestone.target}</span>
-                          </div>
-                          {encouragingMessage && <span className="text-[9px] sm:text-[10px] opacity-60 font-mono italic mt-0.5">{encouragingMessage}</span>}
-                      </div>
-                  </motion.div>
-               );
-            })()}
-          </div>
-          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500 pointer-events-none">
-             <Flame className="w-24 h-24 sm:w-48 sm:h-48" />
-          </div>
-        </div>
-
-        <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden relative group hover:border-app-text-s/30 transition-colors">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 relative z-10 w-full h-[52px] sm:h-[60px] items-start">
-             <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
-            <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-app-text-s font-mono font-medium truncate mt-0.5 sm:mt-1">Longest Streak</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 lg:gap-6 relative z-10 mt-2">
-            <motion.p 
-              key={`longest-text-${longestStreak}`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white tracking-tight flex items-baseline gap-1.5 sm:gap-2">
-              {longestStreak} <span className="text-xs sm:text-sm font-mono text-app-text-s tracking-normal font-normal">days</span>
-            </motion.p>
-            {longestStreak > 0 && (() => {
-               const milestone = getMilestone(longestStreak);
-               return (
-                  <motion.div 
-                      key={`longest-badge-${longestStreak}`}
-                      initial={{ scale: 0.9, x: -10, opacity: 0 }}
-                      animate={{ scale: 1, x: 0, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className={`mb-1 sm:mb-2 flex items-center gap-1.5 px-2 py-1 rounded-md border ${milestone.badgeColor} text-xs font-mono tracking-wide w-fit`}>
-                      <span>{milestone.icon}</span> 
-                      {milestone.name && <span className="font-semibold">{milestone.name} Achieved</span>}
-                      {!milestone.name && <span className="font-semibold">Started</span>}
-                  </motion.div>
-               );
-            })()}
-          </div>
-          <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-500 pointer-events-none">
-             <Trophy className="w-24 h-24 sm:w-48 sm:h-48" />
+            {/* Longest Streak subtle indicator */}
+            <div className="pt-3 border-t border-app-border/50">
+              <span className="text-xs font-mono text-app-text-s/70">
+                Longest Streak: {longestStreak} Days
+              </span>
+            </div>
           </div>
         </div>
       </div>
+    </div>
   );
 }

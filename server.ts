@@ -436,14 +436,15 @@ app.post('/api/restricted-tasks', authenticate, async (req: express.Request, res
   try {
     const sql = getSql();
     const id = crypto.randomUUID();
-    const { name, icon = null, isActive = true } = req.body;
+    const { name, icon = null, isActive = true, schedule } = req.body;
     if (!name) {
       res.status(400).json({ error: "Missing name" });
       return;
     }
+    const scheduleJson = schedule ? JSON.stringify(schedule) : '[0,1,2,3,4,5,6]';
     const tasks = await sql`
-      INSERT INTO "RestrictedTask" (id, name, icon, "isActive", "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${icon}, ${isActive}, NOW(), NOW())
+      INSERT INTO "RestrictedTask" (id, name, icon, "isActive", schedule, "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${icon}, ${isActive}, ${scheduleJson}::jsonb, NOW(), NOW())
       RETURNING *
     `;
     res.json(tasks[0]);
@@ -455,10 +456,11 @@ app.post('/api/restricted-tasks', authenticate, async (req: express.Request, res
 app.put('/api/restricted-tasks/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const { name, icon = null, isActive = true } = req.body;
+    const { name, icon = null, isActive = true, schedule } = req.body;
+    const scheduleJson = schedule ? JSON.stringify(schedule) : '[0,1,2,3,4,5,6]';
     const tasks = await sql`
       UPDATE "RestrictedTask"
-      SET name = ${name}, icon = ${icon}, "isActive" = ${isActive}, "updatedAt" = NOW()
+      SET name = ${name}, icon = ${icon}, "isActive" = ${isActive}, schedule = ${scheduleJson}::jsonb, "updatedAt" = NOW()
       WHERE id = ${req.params.id}
       RETURNING *
     `;
