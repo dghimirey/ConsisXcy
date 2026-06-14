@@ -83,6 +83,7 @@ export const triggerDailyCompletion = () => {
 
 export const triggerPerfectWeek = () => {
     audioSystem.playPerfectDay();
+    setTimeout(() => audioSystem.playConfetti(), 150); // Play confetti pop slightly after
     const duration = 3000;
     const end = Date.now() + duration;
 
