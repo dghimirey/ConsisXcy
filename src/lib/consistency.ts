@@ -23,12 +23,25 @@ export function getDayCompletionStatus(
   const expectedRoutines = routines.filter(r => {
     const routineCategory = categories.find(c => c.id === r.categoryId);
     if (sectionIdFilter !== 'All' && (!routineCategory || routineCategory.sectionId !== sectionIdFilter)) return false;
-    if (!r.isActive) return false;
     if (!r.categoryId || !scheduledCategoryIds.includes(r.categoryId)) return false;
     
     // Check if created before or on the date
     const createdDateStr = new Date(r.createdAt).toISOString().split('T')[0];
-    return createdDateStr <= dateStr;
+    if (createdDateStr > dateStr) return false;
+
+    if (r.isActive) return true;
+
+    if (dateStr >= todayStr) return false;
+
+    // For paused routines, they are expected only up to their most recent action (completion or miss)
+    const pastRecords = completions
+      .filter(c => c.routineId === r.id)
+      .map(c => typeof c.date === 'string' ? c.date.substring(0, 10) : new Date(c.date).toISOString().substring(0, 10));
+    
+    if (pastRecords.length === 0) return false; // Never interacted with, so not expected in the past
+    
+    const lastRecordDate = pastRecords.reduce((a, b) => a > b ? a : b);
+    return dateStr <= lastRecordDate;
   });
 
   const totalTasks = expectedRoutines.length;
@@ -91,11 +104,17 @@ export function calculateRoutineStreak(
   const earliestTime = Math.min(...startDates, new Date(createdDateStr).getTime());
   
   let currDate = dayjs(earliestTime).startOf('day');
-  const today = dayjs().startOf('day');
+  
+  // If not active, limit date is exactly their last completion date so they don't break the streak after pausing
+  let limitDate = dayjs().startOf('day');
+  if (!routine.isActive) {
+     const lastRecordTime = Math.max(...startDates);
+     limitDate = dayjs(lastRecordTime).startOf('day').add(1, 'day');
+  }
 
   let currentStreak = 0;
   
-  while (currDate.isBefore(today)) {
+  while (currDate.isBefore(limitDate)) {
     const dayIndex = currDate.day();
     const dateStr = currDate.format('YYYY-MM-DD');
     
@@ -108,8 +127,11 @@ export function calculateRoutineStreak(
 
        if (status === 'COMPLETED') {
          currentStreak++;
-       } else if (status === 'MISSED' || currDate.isBefore(today)) {
-         currentStreak = 0; // Missed a scheduled day
+       } else if (status === 'MISSED' || (!routine.isActive && currDate.isBefore(limitDate.subtract(1, 'day'))) || (routine.isActive && currDate.isBefore(limitDate))) {
+         // Missed a scheduled day (if it's not active, we allow the last day to not reset the streak if there's no completion)
+         if (status === 'MISSED' || !status) {
+           currentStreak = 0;
+         }
        }
     }
     

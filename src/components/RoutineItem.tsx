@@ -62,7 +62,7 @@ export function RoutineItem({ routine, onEdit, onDelete }: RoutineItemProps) {
                   <button 
                     onClick={() => {
                       setMenuOpen(false);
-                      updateRoutineMutation.mutate({ id: routine.id, data: { isActive: !routine.isActive } });
+                      updateRoutineMutation.mutate({ id: routine.id, data: { ...routine, isActive: !routine.isActive } });
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:bg-app-glass transition-colors text-left"
                   >

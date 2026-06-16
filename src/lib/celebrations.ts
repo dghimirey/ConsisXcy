@@ -1,11 +1,12 @@
 import confetti from 'canvas-confetti';
-import { audioSystem } from './audio';
+import { SoundService } from '../services/SoundService';
 
 type CelebrationType = 'DAY_COMPLETED' | 'PERFECT_WEEK' | 'MILESTONE' | 'PERSONAL_BEST';
 
 type CelebrationEvent = {
     type: CelebrationType;
     message: string;
+    streak?: number;
 };
 
 type Listener = (event: CelebrationEvent) => void;
@@ -22,8 +23,8 @@ const notify = (event: CelebrationEvent) => {
 
 // 1. Routine Completion Celebration
 export const triggerRoutineCompletion = (el?: HTMLElement) => {
-  audioSystem.playRoutineCompletion();
-  setTimeout(() => audioSystem.playConfetti(), 50);
+  SoundService.playRoutineCompletion();
+  setTimeout(() => SoundService.playConfetti(), 50);
   
   let origin = { x: 0.5, y: 0.5 };
   if (el) {
@@ -49,8 +50,8 @@ export const triggerRoutineCompletion = (el?: HTMLElement) => {
 
 // 2. Daily Completion Celebration
 export const triggerDailyCompletion = () => {
-    audioSystem.playDailyCompletion();
-    setTimeout(() => audioSystem.playConfetti(), 300); // Overlay confetti slightly after Arpeggio
+    SoundService.playDailyCompletion();
+    setTimeout(() => SoundService.playConfetti(), 300); // Overlay confetti slightly after Arpeggio
 
     const duration = 2500;
     const end = Date.now() + duration;
@@ -82,8 +83,8 @@ export const triggerDailyCompletion = () => {
 };
 
 export const triggerPerfectWeek = () => {
-    audioSystem.playPerfectDay();
-    setTimeout(() => audioSystem.playConfetti(), 150); // Play confetti pop slightly after
+    SoundService.playPerfectDay();
+    setTimeout(() => SoundService.playConfetti(), 150); // Play confetti pop slightly after
     const duration = 3000;
     const end = Date.now() + duration;
 
@@ -114,12 +115,12 @@ export const triggerPerfectWeek = () => {
 };
 
 export const triggerMilestone = (streak: number) => {
-    if (streak >= 100) audioSystem.play100DayStreak();
-    else if (streak >= 30) audioSystem.play30DayStreak();
-    else if (streak >= 7) audioSystem.play7DayStreak();
-    else audioSystem.playStreakMaintained();
+    if (streak >= 100) SoundService.play100DayStreak();
+    else if (streak >= 30) SoundService.play30DayStreak();
+    else if (streak >= 7) SoundService.play7DayStreak();
+    else SoundService.playStreakMaintained();
     
-    audioSystem.playConfetti();
+    SoundService.playConfetti();
     
     confetti({
         particleCount: 150,
@@ -136,12 +137,12 @@ export const triggerMilestone = (streak: number) => {
     else if (streak >= 30 && streak < 100) msg = "An entire month. Keep going.";
     else if (streak >= 100) msg = "A massive milestone. Legendary consistency.";
 
-    notify({ type: 'MILESTONE', message: `🔥 ${streak} Day Streak\n${msg}` });
+    notify({ type: 'MILESTONE', message: `🔥 ${streak} Day Streak\n${msg}`, streak });
 };
 
 export const triggerPersonalBest = () => {
-    audioSystem.playPersonalBest();
-    audioSystem.playConfetti();
+    SoundService.playPersonalBest();
+    SoundService.playConfetti();
     
     confetti({
         particleCount: 200,

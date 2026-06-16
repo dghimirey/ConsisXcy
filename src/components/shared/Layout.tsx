@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { checkAuth } from '../../services/api';
 import { useEffect, useState } from 'react';
 import { CelebrationOverlay } from '../CelebrationOverlay';
+import { StreakMilestoneModal } from '../metrics/StreakMilestoneModal';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function Layout() {
   return (
     <div className="flex h-[100dvh] bg-app-bg text-app-text-p flex-col md:flex-row overflow-hidden">
       <CelebrationOverlay />
+      <StreakMilestoneModal />
       {/* Desktop Sidebar */}
       <aside className={`relative hidden md:flex ${isCollapsed ? 'w-[88px]' : 'w-64'} transition-all duration-300 ease-in-out border-r border-app-border bg-app-surface backdrop-blur-md flex-col items-center py-8 z-10`}>
         <button 

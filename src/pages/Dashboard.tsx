@@ -12,8 +12,10 @@ import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone, getDayCompletionStatus } from '../lib/consistency';
 import { triggerRoutineCompletion, triggerDailyCompletion, triggerMilestone, triggerPerfectWeek, triggerPersonalBest } from '../lib/celebrations';
-import { audioSystem } from '../lib/audio';
+import { SoundService } from '../services/SoundService';
 import dayjs from 'dayjs';
+
+import { WeeklyMetrics } from '../components/metrics/WeeklyMetrics';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -49,6 +51,15 @@ export default function Dashboard() {
     });
 
     let filteredRoutines = [...activeRoutines];
+
+  // Find routines expected for this day
+  const pausedRoutines = routines.filter((r: Routine) => {
+     const cat = categoriesData.find((c: Category) => c.id === r.categoryId);
+     return !r.isActive && 
+     r.categoryId && 
+     todayCategoryIds.includes(r.categoryId) &&
+     (selectedSection === 'All' || (cat && cat.sectionId === selectedSection));
+  });
 
   const routinesBySection = sectionsData.reduce((acc: Record<string, any>, section: Section) => {
     acc[section.id] = {
@@ -266,7 +277,7 @@ export default function Dashboard() {
                                  if (newStatus === 'COMPLETED' && !isCompleted) {
                                      handleCompletion(e.currentTarget, routine.id, newStatus);
                                  } else if (newStatus === 'MISSED' && isCompleted) {
-                                     audioSystem.playNegativeFeedback();
+                                     SoundService.playNegativeFeedback();
                                  }
                               }}
                           >
@@ -282,7 +293,7 @@ export default function Dashboard() {
                                     if (newStatus === 'COMPLETED' && !isCompleted) {
                                         handleCompletion(e.currentTarget, routine.id, newStatus);
                                     } else if (newStatus === 'MISSED' && isCompleted) {
-                                        audioSystem.playNegativeFeedback();
+                                        SoundService.playNegativeFeedback();
                                     }
                                 }}
                                 className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm ${isCompleted ? 'bg-emerald-500 border-emerald-400 text-constant-white shadow-[0_0_8px_rgba(16,185,129,0.4)] scale-110' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70 hover:scale-105'}`}
@@ -382,13 +393,75 @@ export default function Dashboard() {
         )}
       </div>
 
+      {pausedRoutines.length > 0 && (
+         <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-5 md:p-6 flex flex-col gap-3 md:gap-4 mb-8 md:mb-12 opacity-60 hover:opacity-100 transition-opacity">
+           <div className="flex justify-between items-center border-b border-app-border/50 pb-3 md:pb-4 mb-2">
+             <h2 className="text-lg md:text-xl font-display font-medium text-white truncate pr-2">Paused Routines</h2>
+             <span className="text-[10px] md:text-sm font-mono text-app-text-s tracking-wide whitespace-nowrap">
+               {pausedRoutines.length} Paused
+             </span>
+           </div>
+           
+           <div className="flex flex-col gap-1 md:gap-2">
+             {pausedRoutines.map((routine: any) => {
+               const category = categoriesData.find((c: Category) => c.id === routine.categoryId);
+               const categoryName = category ? category.name : 'Unknown';
+               const currentStreak = getStreak(routine.id);
+               const IconComponent = getIcon(routine.icon);
+               
+               return (
+                   <div 
+                       key={routine.id} 
+                       className="group px-3 py-3 md:px-4 md:py-3.5 -mx-3 md:-mx-4 rounded-[12px] flex items-center gap-3 md:gap-4 transition-all duration-300 pointer-events-none"
+                   >
+                       <div className="w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm bg-transparent border-app-border text-transparent"></div>
+                       
+                       <div className="flex-1 min-w-0">
+                           <h3 className="text-sm md:text-base font-medium truncate text-app-text-p flex items-center gap-2">
+                               {IconComponent && <IconComponent className="w-4 h-4 text-app-text-s hidden sm:block" />}
+                               {routine.name}
+                               <span className="text-[10px] ml-1 bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-mono uppercase">Paused</span>
+                           </h3>
+                           <div className="flex max-w-full overflow-x-auto hide-scrollbar">
+                               <div className="flex items-center gap-1.5 md:gap-2 mt-0.5 whitespace-nowrap min-w-max pb-0.5">
+                                   <span className="text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md bg-app-surface/60 border border-app-border text-app-text-s tracking-wide uppercase">
+                                     {categoryName}
+                                   </span>
+                                   {currentStreak > 0 && (() => {
+                                       const milestone = getMilestone(currentStreak);
+                                       const progress = Math.min(100, (currentStreak / milestone.target) * 100);
+                                       return (
+                                           <div className={`flex items-center gap-1.5 px-1.5 py-0.5 md:py-1 rounded-md border ${milestone.badgeColor} transition-colors text-[9px] md:text-[10px] font-mono tracking-wide`}>
+                                               <div className="flex items-center gap-0.5 md:gap-1">
+                                                   <span>{milestone.icon}</span>
+                                                   <span className={milestone.textColor}>{currentStreak} <span className="hidden sm:inline">streak</span></span>
+                                               </div>
+                                               {milestone.name && (
+                                                   <span className={`font-semibold ml-0.5 ${milestone.textColor}`}>{milestone.name}</span>
+                                               )}
+                                           </div>
+                                       );
+                                   })()}
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               )
+             })}
+           </div>
+         </div>
+      )}
+
       {restrictedTasks.length > 0 && selectedSection === 'All' && (
         <RestrictedTasksList tasks={restrictedTasks} completions={restrictedCompletions} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          <HabitHeatmap section={selectedSection} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mb-6">
+          <WeeklyMetrics section={selectedSection} />
           <MonthlyTrendsChart section={selectedSection} />
+      </div>
+      <div className="w-full">
+          <HabitHeatmap section={selectedSection} />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-class AudioManager {
+class SoundServiceManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
 
@@ -638,4 +638,4 @@ class AudioManager {
   }
 }
 
-export const audioSystem = new AudioManager();
+export const SoundService = new SoundServiceManager();

@@ -7,6 +7,7 @@ export function CelebrationOverlay() {
 
     useEffect(() => {
         const unsubscribe = subscribeToCelebrations((event) => {
+            if (event.type === 'MILESTONE' && event.streak && [7, 30, 100].includes(event.streak)) return;
             const id = Date.now() + Math.random();
             setMessages(prev => [...prev, { id, ...event }]);
             

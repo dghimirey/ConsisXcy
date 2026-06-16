@@ -3,7 +3,7 @@ import { usePomodoroStore, PomodoroPhase } from '../../store/usePomodoroStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, FastForward, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { audioSystem } from '../../lib/audio';
+import { SoundService } from '../../services/SoundService';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 
@@ -51,8 +51,8 @@ export function PomodoroTab() {
     if (isRunning && currentRemaining <= 0) {
       if (soundEnabled) {
           if (phase === 'focus') {
-             audioSystem.playPomodoroWorkComplete();
-             setTimeout(() => audioSystem.playConfetti(), 100);
+             SoundService.playPomodoroWorkComplete();
+             setTimeout(() => SoundService.playConfetti(), 100);
              confetti({
                 particleCount: 50,
                 spread: 60,
@@ -62,7 +62,7 @@ export function PomodoroTab() {
              });
              toast('Focus Session Complete', { icon: '🎯', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
           } else {
-             audioSystem.playPomodoroBreakComplete();
+             SoundService.playPomodoroBreakComplete();
              toast('Ready to focus again?', { icon: '☕', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
           }
       }
@@ -89,20 +89,20 @@ export function PomodoroTab() {
       if (soundEnabled) {
          if (remaining === currentDuration) {
              if (phase === 'focus') {
-                audioSystem.playTimerStart();
+                SoundService.playTimerStart();
              } else {
-                audioSystem.playPomodoroBreakStart();
+                SoundService.playPomodoroBreakStart();
                 toast('Time for a break', { icon: '🧘', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
              }
          } else {
-             audioSystem.playTimerResume();
+             SoundService.playTimerResume();
          }
       }
   };
 
   const handlePause = () => {
       pause();
-      if (soundEnabled) audioSystem.playTimerPause();
+      if (soundEnabled) SoundService.playTimerPause();
   };
 
   const handleSaveSettings = () => {

@@ -3,7 +3,7 @@ import { useTimerStore } from '../../store/useTimerStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, Plus, Minus, BellRing, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { audioSystem } from '../../lib/audio';
+import { SoundService } from '../../services/SoundService';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 
@@ -50,8 +50,8 @@ export function TimerTab() {
          setIsFinished(true);
          pause();
          if (soundEnabled) {
-            audioSystem.playTimerComplete();
-            setTimeout(() => audioSystem.playConfetti(), 100);
+            SoundService.playTimerComplete();
+            setTimeout(() => SoundService.playConfetti(), 100);
             confetti({
                particleCount: 80,
                spread: 70,
@@ -93,16 +93,16 @@ export function TimerTab() {
       start();
       if (soundEnabled) {
          if (remaining === targetDuration) {
-             audioSystem.playTimerStart();
+             SoundService.playTimerStart();
          } else {
-             audioSystem.playTimerResume();
+             SoundService.playTimerResume();
          }
       }
   };
 
   const handlePause = () => {
       pause();
-      if (soundEnabled) audioSystem.playTimerPause();
+      if (soundEnabled) SoundService.playTimerPause();
   };
 
   const handleStopAlarm = () => {
