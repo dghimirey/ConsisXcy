@@ -18,6 +18,7 @@ import Login from './pages/Login';
 const queryClient = new QueryClient();
 
 const TimeManagementPage = lazy(() => import('./pages/TimeManagementPage'));
+const Analytics = lazy(() => import('./pages/Analytics'));
 
 export default function App() {
   return (
@@ -30,7 +31,7 @@ export default function App() {
               <Route index element={<Dashboard />} />
               <Route path="routines" element={<RoutinesPage />} />
               <Route path="time" element={<TimeManagementPage />} />
-
+              <Route path="analytics" element={<Analytics />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

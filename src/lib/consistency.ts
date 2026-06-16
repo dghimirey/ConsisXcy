@@ -63,6 +63,12 @@ export function getDayCompletionStatus(
       completedTasks++;
     } else if (status === 'MISSED') {
       explicitlyMissed++;
+    } else if (!isDayEnded && routine.deadline) {
+       const now = dayjs();
+       const deadlineTime = dayjs(`${dateStr}T${routine.deadline}`);
+       if (now.isAfter(deadlineTime)) {
+          explicitlyMissed++;
+       }
     }
   });
 
@@ -105,8 +111,8 @@ export function calculateRoutineStreak(
   
   let currDate = dayjs(earliestTime).startOf('day');
   
-  // If not active, limit date is exactly their last completion date so they don't break the streak after pausing
-  let limitDate = dayjs().startOf('day');
+  // If active, we evaluate up to today.
+  let limitDate = dayjs().startOf('day').add(1, 'day'); // Include today
   if (!routine.isActive) {
      const lastRecordTime = Math.max(...startDates);
      limitDate = dayjs(lastRecordTime).startOf('day').add(1, 'day');
@@ -117,19 +123,28 @@ export function calculateRoutineStreak(
   while (currDate.isBefore(limitDate)) {
     const dayIndex = currDate.day();
     const dateStr = currDate.format('YYYY-MM-DD');
+    const isToday = dateStr === dayjs().format('YYYY-MM-DD');
     
     // Only care if scheduled
     if (category.schedule.includes(dayIndex)) {
-       const status = routineCompletions.find(c => {
+       let status = routineCompletions.find(c => {
          const cDateStr = typeof c.date === 'string' ? c.date.substring(0, 10) : new Date(c.date).toISOString().substring(0, 10);
          return cDateStr === dateStr;
        })?.status;
 
+       if (!status && isToday && routine.deadline) {
+          const now = dayjs();
+          const deadlineTime = dayjs(`${dateStr}T${routine.deadline}`);
+          if (now.isAfter(deadlineTime)) {
+             status = 'MISSED';
+          }
+       }
+
        if (status === 'COMPLETED') {
          currentStreak++;
-       } else if (status === 'MISSED' || (!routine.isActive && currDate.isBefore(limitDate.subtract(1, 'day'))) || (routine.isActive && currDate.isBefore(limitDate))) {
-         // Missed a scheduled day (if it's not active, we allow the last day to not reset the streak if there's no completion)
-         if (status === 'MISSED' || !status) {
+       } else if (status === 'MISSED' || (!routine.isActive && !isToday && currDate.isBefore(limitDate.subtract(1, 'day'))) || (routine.isActive && !isToday && currDate.isBefore(limitDate))) {
+         // Missed a scheduled day in the past, or missed today (if explicitly marked/expired)
+         if (status === 'MISSED' || (!isToday && !status)) {
            currentStreak = 0;
          }
        }
@@ -138,8 +153,6 @@ export function calculateRoutineStreak(
     currDate = currDate.add(1, 'day');
   }
 
-  // Check today is not needed since streak is up to yesterday
-  // We do not break or increase the streak for today based on new rules
   return currentStreak;
 }
 
@@ -208,4 +221,72 @@ export function calculateGlobalStreaks(
     todayCompleted,
     todayPercentage: todayResult.percentage
   };
+}
+
+export function getRestrictedDayCompletionStatus(
+  dateStr: string,
+  restrictedTasks: import('../types').RestrictedTask[],
+  restrictedCompletions: import('../types').RestrictedCompletion[]
+) {
+  const date = dayjs(dateStr);
+  const dayIndex = date.day(); // 0 is Sunday, 6 is Saturday
+  const todayStr = dayjs().format('YYYY-MM-DD');
+  const isDayEnded = dateStr < todayStr;
+
+  // Find active restricted tasks scheduled for this day
+  const expectedTasks = restrictedTasks.filter(t => {
+    // Check if created before or on the date
+    const createdDateStr = new Date(t.createdAt).toISOString().split('T')[0];
+    if (createdDateStr > dateStr) return false;
+
+    if (!t.isActive && dateStr >= todayStr) return false;
+
+    if (!t.schedule || t.schedule.length === 0) return true;
+    return t.schedule.includes(dayIndex);
+  });
+
+  const totalTasks = expectedTasks.length;
+  if (totalTasks === 0) return { status: 'NONE', percentage: 0, totalTasks: 0, avoidedTasks: 0, failedTasks: 0 };
+
+  const filteredCompletions = restrictedCompletions.filter((c: any) => {
+    const cDateStr = typeof c.date === 'string' ? c.date.substring(0, 10) : new Date(c.date).toISOString().substring(0, 10);
+    return cDateStr === dateStr;
+  });
+
+  let avoidedTasks = 0;
+  let failedTasks = 0;
+
+  expectedTasks.forEach(task => {
+    const status = filteredCompletions.find(c => c.taskId === task.id)?.status;
+    if (status === 'AVOIDED') {
+      avoidedTasks++;
+    } else if (status === 'FAILED') {
+      failedTasks++;
+    } else if (isDayEnded) {
+       // Automatic failure if not avoiding past tasks
+       failedTasks++;
+    } else if (dateStr === todayStr) {
+       // For today, if no record and time is past 12:00AM, but 12:00AM just means next day right?
+       // user said: "if nothing done until 12:00AM, it will automatically set to failed"
+       // This implies when the day is over (isDayEnded), so wait until next day, it becomes failed. Same logic as isDayEnded above.
+    }
+  });
+
+  let percentage = 0;
+  if (totalTasks > 0) {
+     // AVOIDED is good, FAILED is bad. PENDING means we don't count yet, except for calculating full success metric?
+     // Actually percentage could just be (avoided / total)*100
+     percentage = Math.round((avoidedTasks / totalTasks) * 100);
+  }
+
+  if (avoidedTasks === totalTasks && totalTasks > 0) {
+    return { status: 'ALL_AVOIDED', percentage: 100, totalTasks, avoidedTasks, failedTasks };
+  } else if (failedTasks > 0) {
+    return { status: 'FAILED_SOME', percentage, totalTasks, avoidedTasks, failedTasks };
+  } else if (avoidedTasks > 0) {
+    return { status: 'SOME_AVOIDED', percentage, totalTasks, avoidedTasks, failedTasks };
+  } else {
+    // Day isn't over, 0 progress
+    return { status: 'PENDING', percentage: 0, totalTasks, avoidedTasks, failedTasks };
+  }
 }

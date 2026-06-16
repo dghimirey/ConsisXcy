@@ -52,6 +52,10 @@ export default function Layout() {
             <TimerIcon className="w-5 h-5 shrink-0" />
             {!isCollapsed && <span>Time</span>}
           </NavLink>
+          <NavLink to="/analytics" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Analytics">
+            <Activity className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Analytics</span>}
+          </NavLink>
 
         </nav>
         <div className={`mt-auto w-full px-4 flex flex-col gap-2`}>
@@ -79,6 +83,10 @@ export default function Layout() {
         <NavLink to="/time" className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive || location.pathname.startsWith('/time') ? 'text-app-accent' : 'text-app-text-s'}`}>
           <TimerIcon className="w-5 h-5" />
           <span className="text-[10px] uppercase font-mono tracking-wider">Time</span>
+        </NavLink>
+        <NavLink to="/analytics" className={({ isActive }) => `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 w-16 ${isActive ? 'text-app-accent' : 'text-app-text-s'}`}>
+          <Activity className="w-5 h-5" />
+          <span className="text-[10px] uppercase font-mono tracking-wider">Analytics</span>
         </NavLink>
 
       </nav>

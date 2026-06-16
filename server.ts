@@ -206,7 +206,7 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
   try {
     const sql = getSql();
     const id = crypto.randomUUID();
-    const { name, category, categoryId, description, targetValue, targetUnit, sets = 1, icon = null, isActive = true, autoImprovement = false } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, sets = 1, icon = null, isActive = true, autoImprovement = false, deadline = null } = req.body;
     
     if (!name || (!category && !categoryId) || targetValue === undefined || !targetUnit) {
       res.status(400).json({ error: "Missing required fields" });
@@ -214,8 +214,8 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
     }
     
     const routines = await sql`
-      INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "sets", "icon", "isActive", "autoImprovement", "createdAt", "updatedAt")
-      VALUES (${id}, ${name}, ${category || 'Uncategorized'}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${sets}, ${icon}, ${isActive}, ${autoImprovement}, NOW(), NOW())
+      INSERT INTO "Routine" (id, name, category, "categoryId", description, "targetValue", "targetUnit", "sets", "icon", "isActive", "autoImprovement", "deadline", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${category || 'Uncategorized'}, ${categoryId || null}, ${description || null}, ${targetValue}, ${targetUnit}, ${sets}, ${icon}, ${isActive}, ${autoImprovement}, ${deadline}, NOW(), NOW())
       RETURNING *
     `;
     const routine = routines[0];
@@ -237,7 +237,7 @@ app.post('/api/routines', authenticate, async (req: express.Request, res: expres
 app.put('/api/routines/:id', authenticate, async (req: express.Request, res: express.Response) => {
   try {
     const sql = getSql();
-    const { name, category, categoryId, description, targetValue, targetUnit, sets = 1, icon = null, isActive, autoImprovement } = req.body;
+    const { name, category, categoryId, description, targetValue, targetUnit, sets = 1, icon = null, isActive, autoImprovement, deadline } = req.body;
     
     if (!name || (!category && !categoryId) || targetValue === undefined || !targetUnit) {
       res.status(400).json({ error: "Missing required fields" });
@@ -247,7 +247,7 @@ app.put('/api/routines/:id', authenticate, async (req: express.Request, res: exp
     const routines = await sql`
       UPDATE "Routine"
       SET name = ${name}, category = ${category || 'Uncategorized'}, "categoryId" = ${categoryId || null}, description = ${description || null},
-          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "sets" = ${sets}, "icon" = ${icon}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "updatedAt" = NOW()
+          "targetValue" = ${targetValue}, "targetUnit" = ${targetUnit}, "sets" = ${sets}, "icon" = ${icon}, "isActive" = ${isActive}, "autoImprovement" = ${autoImprovement}, "deadline" = ${deadline ?? null}, "updatedAt" = NOW()
       WHERE id = ${req.params.id}
       RETURNING *
     `;

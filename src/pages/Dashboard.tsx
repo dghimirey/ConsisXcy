@@ -7,15 +7,11 @@ import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchC
 import { Routine, Completion, Category, Section, RestrictedTask, RestrictedCompletion } from '../types';
 import { StreakCounter } from '../components/StreakCounter';
 import { RestrictedTasksList } from '../components/RestrictedTasksList';
-import { HabitHeatmap } from '../components/HabitHeatmap';
-import { MonthlyTrendsChart } from '../components/MonthlyTrendsChart';
 import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone, getDayCompletionStatus } from '../lib/consistency';
 import { triggerRoutineCompletion, triggerDailyCompletion, triggerMilestone, triggerPerfectWeek, triggerPersonalBest } from '../lib/celebrations';
 import { SoundService } from '../services/SoundService';
 import dayjs from 'dayjs';
-
-import { WeeklyMetrics } from '../components/metrics/WeeklyMetrics';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -256,6 +252,12 @@ export default function Dashboard() {
                       const isCompleted = status === 'COMPLETED';
                       const currentStreak = getStreak(routine.id);
                       
+                      const isExpired = routine.deadline && !isCompleted && (() => {
+                         const now = dayjs();
+                         const deadlineTime = dayjs(`${todayStr}T${routine.deadline}`);
+                         return now.isAfter(deadlineTime);
+                      })();
+                      
                       return (
                           <motion.div 
                               layout
@@ -263,8 +265,9 @@ export default function Dashboard() {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
                               key={routine.id} 
-                              className={`group px-3 py-3 md:px-4 md:py-3.5 -mx-3 md:-mx-4 rounded-[12px] flex items-center gap-3 md:gap-4 transition-all duration-300 cursor-pointer ${isCompleted ? 'bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)] scale-[0.99] hover:bg-emerald-500/15' : 'hover:bg-app-surface'}`}
+                              className={`group px-3 py-3 md:px-4 md:py-3.5 -mx-3 md:-mx-4 rounded-[12px] flex items-center gap-3 md:gap-4 transition-all duration-300 ${isExpired ? 'cursor-default' : 'cursor-pointer'} ${isCompleted ? 'bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.05)] scale-[0.99] hover:bg-emerald-500/15' : (isExpired ? 'bg-rose-500/10 ring-1 ring-inset ring-rose-500/30' : 'hover:bg-app-surface')}`}
                               onClick={(e) => {
+                                 if (isExpired) return;
                                  // To prevent double triggering if checkbox is clicked directly
                                  const target = e.target as HTMLElement;
                                  if (target.closest('button')) return;
@@ -284,6 +287,7 @@ export default function Dashboard() {
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (isExpired) return;
                                     const totalTarget = (routine.sets || 1) * routine.targetValue;
                                     const newStatus = isCompleted ? 'MISSED' : 'COMPLETED';
                                     const newVal = newStatus === 'COMPLETED' ? totalTarget : 0;
@@ -296,13 +300,13 @@ export default function Dashboard() {
                                         SoundService.playNegativeFeedback();
                                     }
                                 }}
-                                className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm ${isCompleted ? 'bg-emerald-500 border-emerald-400 text-constant-white shadow-[0_0_8px_rgba(16,185,129,0.4)] scale-110' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70 hover:scale-105'}`}
+                                className={`w-5 h-5 md:w-6 md:h-6 shrink-0 rounded-[6px] flex items-center justify-center transition-all duration-300 border shadow-sm ${isCompleted ? 'bg-emerald-500 border-emerald-400 text-constant-white shadow-[0_0_8px_rgba(16,185,129,0.4)] scale-110' : (isExpired ? 'bg-rose-500/20 border-rose-500/50 text-transparent' : 'bg-transparent border-app-border text-transparent group-hover:border-app-text-s/70 hover:scale-105')}`}
                             >
                                 <Check className={`w-3.5 h-3.5 md:w-4 md:h-4 transition-transform duration-300 ${isCompleted ? 'scale-100 rotate-0' : 'scale-0 -rotate-90'}`} strokeWidth={3} />
                             </button>
                             
                             <div className="flex flex-col gap-0.5 flex-1 select-none overflow-hidden">
-                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate flex items-center gap-2 ${isCompleted ? 'text-white' : 'text-white group-hover:text-emerald-400'}`}>
+                                <h3 className={`text-sm md:text-base font-medium transition-colors duration-300 truncate flex items-center gap-2 ${isCompleted ? 'text-white' : (isExpired ? 'text-rose-400' : 'text-white group-hover:text-emerald-400')}`}>
                                     {(() => {
                                        const IconComponent = getIcon(routine.icon);
                                        return <IconComponent className={`w-4 h-4 md:w-5 md:h-5 ${isCompleted ? 'text-emerald-400/80' : 'text-app-text-s'}`} />;
@@ -341,7 +345,7 @@ export default function Dashboard() {
                                                 }}
                                               >
                                                 <span className="opacity-60">Goal:</span>
-                                                <span className={isCompleted ? 'text-emerald-400' : 'text-gray-300'}>
+                                                <span className={isCompleted ? 'text-emerald-400' : (isExpired ? 'text-rose-400' : 'text-gray-300')}>
                                                   {sets > 1 
                                                      ? (showSetsProgress ? `${setsCompleted} / ${sets}` : `${sets} × ${routine.targetValue}`)
                                                      : (routine.targetValue > 1 ? `${currentVal}/${routine.targetValue}` : routine.targetValue)}
@@ -379,6 +383,11 @@ export default function Dashboard() {
                                                 </motion.div>
                                             );
                                         })()}
+                                        {routine.deadline && (
+                                           <span className={`text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md border tracking-wide uppercase flex items-center gap-1 shrink-0 ${isExpired ? 'bg-rose-500 text-white border-rose-400 font-bold shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-amber-500/10 border-amber-500/20 text-amber-500'}`}>
+                                              {isExpired ? `Expired (${routine.deadline})` : `By ${routine.deadline}`}
+                                           </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -455,14 +464,6 @@ export default function Dashboard() {
       {restrictedTasks.length > 0 && selectedSection === 'All' && (
         <RestrictedTasksList tasks={restrictedTasks} completions={restrictedCompletions} />
       )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mb-6">
-          <WeeklyMetrics section={selectedSection} />
-          <MonthlyTrendsChart section={selectedSection} />
-      </div>
-      <div className="w-full">
-          <HabitHeatmap section={selectedSection} />
-      </div>
     </div>
   );
 }

@@ -166,7 +166,7 @@ export default function RoutinesPage() {
                                   <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} onDelete={(r) => setItemToDelete({id: r.id, type: 'Routine'})} />
                                 ))}
                                 <button 
-                                  onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', sets: 1, isActive: true, autoImprovement: false })} 
+                                  onClick={() => setEditingRoutine({ categoryId: category.id, category: category.name, name: '', targetValue: 1, targetUnit: 'times', sets: 1, isActive: true, autoImprovement: false, deadline: null })} 
                                   className="w-full flex items-center justify-center gap-2 p-3 text-sm font-medium text-app-text-s hover:text-white border border-dashed border-app-border hover:border-app-text-s/70 rounded-xl transition-colors mt-2 bg-app-surface/10 hover:bg-app-surface/30"
                                 >
                                   <Plus className="w-4 h-4" /> Add Routine
@@ -430,6 +430,12 @@ export default function RoutinesPage() {
           <div>
             <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Notes <span className="text-app-text-s/50">(Optional)</span></label>
             <textarea className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors resize-none h-24" value={editingRoutine?.description || ''} onChange={e => setEditingRoutine((r: any) => ({...r, description: e.target.value}))} placeholder="Details about this routine..." />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-app-text-s mb-2 ml-1">Deadline <span className="text-app-text-s/50">(Optional)</span></label>
+            <input type="time" className="w-full bg-app-bg border border-app-border p-3.5 rounded-xl text-white outline-none focus:border-app-accent transition-colors [color-scheme:dark]" value={editingRoutine?.deadline || ''} onChange={e => setEditingRoutine((r: any) => ({...r, deadline: e.target.value || null}))} />
+            <p className="text-xs text-app-text-s mt-1 ml-1">Tasks expire if not completed by this time each day.</p>
           </div>
 
           <div>

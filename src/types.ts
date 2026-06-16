@@ -10,6 +10,7 @@ export interface Routine {
   icon?: string | null;
   isActive: boolean;
   autoImprovement: boolean;
+  deadline?: string | null;
   createdAt: string;
   updatedAt: string;
 }
