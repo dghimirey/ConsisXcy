@@ -20,6 +20,7 @@ export default function Dashboard() {
 
     const [selectedSection, setSelectedSection] = useState<string>('All');
   const [focusRoutine, setFocusRoutine] = useState<Routine | null>(null);
+  const [showPausedRoutines, setShowPausedRoutines] = useState(false);
 
     const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
     const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
@@ -417,13 +418,25 @@ export default function Dashboard() {
         )}
       </div>
 
-      {pausedRoutines.length > 0 && (
+      {pausedRoutines.length > 0 && !showPausedRoutines && (
+         <button 
+           onClick={() => setShowPausedRoutines(true)}
+           className="w-full text-center py-4 text-app-text-s/70 hover:text-white transition-colors text-xs font-mono uppercase tracking-widest border border-dashed border-app-border rounded-[20px] mb-8 md:mb-12 hover:bg-white/5"
+         >
+           View {pausedRoutines.length} Paused Task{pausedRoutines.length !== 1 ? 's' : ''}
+         </button>
+      )}
+
+      {pausedRoutines.length > 0 && showPausedRoutines && (
          <div className="bg-app-glass border border-app-border rounded-[20px] p-4 sm:p-5 md:p-6 flex flex-col gap-3 md:gap-4 mb-8 md:mb-12 opacity-60 hover:opacity-100 transition-opacity">
            <div className="flex justify-between items-center border-b border-app-border/50 pb-3 md:pb-4 mb-2">
              <h2 className="text-lg md:text-xl font-display font-medium text-white truncate pr-2">Paused Routines</h2>
-             <span className="text-[10px] md:text-sm font-mono text-app-text-s tracking-wide whitespace-nowrap">
-               {pausedRoutines.length} Paused
-             </span>
+             <button 
+                onClick={() => setShowPausedRoutines(false)}
+                className="text-[10px] md:text-sm font-mono text-app-text-s tracking-wide whitespace-nowrap hover:text-white uppercase transition-colors"
+             >
+               Hide
+             </button>
            </div>
            
            <div className="flex flex-col gap-1 md:gap-2">
