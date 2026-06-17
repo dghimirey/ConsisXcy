@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { Check } from 'lucide-react';
+import { Check, Focus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections, fetchRestrictedTasks, fetchRestrictedCompletions, toggleRestrictedCompletion } from '../services/api';
 import { Routine, Completion, Category, Section, RestrictedTask, RestrictedCompletion } from '../types';
@@ -11,6 +11,7 @@ import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone, getDayCompletionStatus } from '../lib/consistency';
 import { triggerRoutineCompletion, triggerDailyCompletion, triggerMilestone, triggerPerfectWeek, triggerPersonalBest } from '../lib/celebrations';
 import { SoundService } from '../services/SoundService';
+import { FocusSessionOverlay } from '../components/shared/FocusSessionOverlay';
 import dayjs from 'dayjs';
 
 export default function Dashboard() {
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     const [selectedSection, setSelectedSection] = useState<string>('All');
+  const [focusRoutine, setFocusRoutine] = useState<Routine | null>(null);
 
     const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: fetchRoutines });
     const { data: completions = [] } = useQuery({ queryKey: ['completions'], queryFn: fetchCompletions });
@@ -391,6 +393,19 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             </div>
+                            
+                            {!isExpired && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFocusRoutine(routine);
+                                    }}
+                                    className="p-2 ml-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 text-app-text-s/70 hover:text-emerald-400 transition-all z-10"
+                                    title="Start Focus Session"
+                                >
+                                    <Focus className="w-4 h-4 md:w-5 md:h-5" />
+                                </button>
+                            )}
                           </motion.div>
                       )
                     })}
@@ -464,6 +479,21 @@ export default function Dashboard() {
       {restrictedTasks.length > 0 && selectedSection === 'All' && (
         <RestrictedTasksList tasks={restrictedTasks} completions={restrictedCompletions} />
       )}
+      
+      <FocusSessionOverlay
+        routine={focusRoutine}
+        onClose={() => setFocusRoutine(null)}
+        onComplete={(routineId) => {
+           const r = routines.find(x => x.id === routineId);
+           if (r) {
+             const totalTarget = (r.sets || 1) * r.targetValue;
+             mutation.mutate({ routineId: r.id, date: todayStr, status: 'COMPLETED', targetValue: totalTarget, value: totalTarget });
+             if (getDayStatus(routineId) !== 'COMPLETED') {
+                 handleCompletion(null, routineId, 'COMPLETED');
+             }
+           }
+        }}
+      />
     </div>
   );
 }

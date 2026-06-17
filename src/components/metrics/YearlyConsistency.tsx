@@ -143,8 +143,15 @@ export function YearlyConsistency({ section = 'All' }: { section?: string }) {
                               <div
                                  key={date.format('YYYY-MM-DD')}
                                  title={`${date.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : percentage + '% Complete'}`}
-                                 className={`w-[12px] h-[12px] rounded-[3px] transition-all duration-300 cursor-pointer relative ${bgClass}`}
-                              />
+                                 className={`w-[12px] h-[12px] rounded-[3px] transition-all duration-300 cursor-pointer relative ${bgClass} ${isToday ? 'z-30' : ''}`}
+                              >
+                                {isToday && (
+                                  <div className="absolute inset-0 overflow-hidden rounded-[3px] pointer-events-none z-0">
+                                    <div className="absolute top-0 bottom-0 left-0 w-[150%] bg-gradient-to-r from-transparent via-white/60 to-transparent animate-sweep" />
+                                    <div className="absolute inset-0 ring-1 ring-inset ring-white/50 rounded-[3px]" />
+                                  </div>
+                                )}
+                              </div>
                            );
                         })}
                      </div>

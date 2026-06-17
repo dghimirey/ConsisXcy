@@ -114,9 +114,15 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
            return (
              <div 
                key={day.format('YYYY-MM-DD')} 
-               className={`aspect-square rounded-[8px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer ${bgClass} ${isToday ? 'ring-1 ring-white/50 ring-offset-1 ring-offset-app-surface z-30' : isPartOfStreak ? 'ring-1 ring-[#16A34A]/80 ring-offset-1 ring-offset-app-surface z-20 shadow-[0_0_8px_rgba(22,163,74,0.25)]' : ''}`}
+               className={`aspect-square rounded-[8px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer w-full h-full ${bgClass} ${isPartOfStreak ? 'ring-1 ring-[#16A34A]/80 ring-offset-1 ring-offset-app-surface z-20 shadow-[0_0_8px_rgba(22,163,74,0.25)]' : (isToday ? 'z-30' : '')}`}
                title={`${day.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : percentage + '% Complete'}`}
              >
+                {isToday && (
+                  <div className="absolute inset-0 overflow-hidden rounded-[8px] pointer-events-none z-0">
+                    <div className="absolute top-0 bottom-0 left-0 w-[80%] bg-gradient-to-r from-transparent via-white/50 to-transparent animate-sweep" />
+                    <div className="absolute inset-0 ring-1 ring-inset ring-white/40 rounded-[8px]" />
+                  </div>
+                )}
                 <span className={`text-[10px] font-mono flex items-center justify-center w-full h-full text-center relative z-10`}>
                   {day.format('D')}
                 </span>

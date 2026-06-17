@@ -9,7 +9,7 @@ export function RestrictedYearlyConsistency() {
   const { data: completions = [] } = useQuery({ queryKey: ['restrictedCompletions'], queryFn: fetchRestrictedCompletions });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { daysGrid, monthLabels } = useMemo(() => {
+  const { daysGrid, monthLabels, currentStreakDates } = useMemo(() => {
     // Generate exactly 365 days up to today
     const days: { date: dayjs.Dayjs, result: any }[] = [];
     const today = dayjs();
@@ -18,6 +18,29 @@ export function RestrictedYearlyConsistency() {
         const dateStr = d.format('YYYY-MM-DD');
         const result = getRestrictedDayCompletionStatus(dateStr, tasks, completions);
         days.push({ date: d, result });
+    }
+
+    const currentStreakDates = new Set<string>();
+    if (tasks.length > 0) {
+      let temp = dayjs().subtract(1, 'day'); // start checking from yesterday
+      while (true) {
+        const res = getRestrictedDayCompletionStatus(temp.format('YYYY-MM-DD'), tasks, completions);
+        if (res.status === 'ALL_AVOIDED' && res.totalTasks > 0) {
+          currentStreakDates.add(temp.format('YYYY-MM-DD'));
+          temp = temp.subtract(1, 'day');
+        } else if (res.status === 'PENDING' || res.status === 'NONE') {
+          // skip
+          temp = temp.subtract(1, 'day');
+        } else {
+          break;
+        }
+        if (dayjs().diff(temp, 'day') > 1000) break;
+      }
+      
+      const todayRes = getRestrictedDayCompletionStatus(dayjs().format('YYYY-MM-DD'), tasks, completions);
+      if (todayRes.status === 'ALL_AVOIDED' && todayRes.totalTasks > 0) {
+         currentStreakDates.add(dayjs().format('YYYY-MM-DD'));
+      }
     }
 
     // A standard GitHub-like heatmap is column based (each column is a week).
@@ -47,7 +70,7 @@ export function RestrictedYearlyConsistency() {
         colIndex++;
     }
 
-    return { daysGrid: grid, monthLabels: labels };
+    return { daysGrid: grid, monthLabels: labels, currentStreakDates };
   }, [tasks, completions]);
 
   const numWeeks = Math.ceil(daysGrid.length / 7);
@@ -110,6 +133,7 @@ export function RestrictedYearlyConsistency() {
                            const result = dayItem.result;
                            const status = result.status;
                            const isToday = date.isSame(dayjs(), 'day');
+                           const isPartOfStreak = currentStreakDates.has(date.format('YYYY-MM-DD'));
 
                            let bgClass = 'bg-[#1a1a1a] hover:bg-[#222222] border border-[#2a2a2a] hover:scale-110 hover:z-20 transition-all'; // NONE
                            
@@ -129,8 +153,15 @@ export function RestrictedYearlyConsistency() {
                               <div
                                  key={date.format('YYYY-MM-DD')}
                                  title={`${date.format('MMM D, YYYY')}: ${status === 'NONE' ? 'No tasks' : (status === 'PENDING' ? 'Pending' : (status === 'ALL_AVOIDED' ? 'Successfully Avoided' : 'Failed'))}`}
-                                 className={`w-[12px] h-[12px] rounded-[3px] transition-all duration-300 cursor-pointer relative ${bgClass} ${isToday ? 'ring-1 ring-white/50 ring-offset-1 ring-offset-app-surface z-20' : ''}`}
-                              />
+                                 className={`w-[12px] h-[12px] rounded-[3px] transition-all duration-300 cursor-pointer relative ${bgClass} ${isPartOfStreak ? 'ring-1 ring-[#16A34A]/80 ring-offset-1 ring-offset-app-surface z-10' : (isToday ? 'z-30' : '')}`}
+                              >
+                                {isToday && (
+                                  <div className="absolute inset-0 overflow-hidden rounded-[3px] pointer-events-none z-0">
+                                    <div className="absolute top-0 bottom-0 left-0 w-[150%] bg-gradient-to-r from-transparent via-white/60 to-transparent animate-sweep" />
+                                    <div className="absolute inset-0 ring-1 ring-inset ring-white/50 rounded-[3px]" />
+                                  </div>
+                                )}
+                              </div>
                            );
                         })}
                      </div>

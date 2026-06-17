@@ -22,6 +22,14 @@
 }
 
 @layer utilities {
+  .animate-sweep {
+    animation: sweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  @keyframes sweep {
+    0% { transform: translateX(-150%) skewX(-20deg); opacity: 0; }
+    15% { opacity: 0.4; }
+    40%, 100% { transform: translateX(250%) skewX(-20deg); opacity: 0; }
+  }
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
