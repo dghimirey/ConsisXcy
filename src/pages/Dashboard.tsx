@@ -194,6 +194,7 @@ export default function Dashboard() {
         isAtRisk={userGlobalStreaks.isAtRisk}
         todayCompleted={userGlobalStreaks.todayCompleted}
         todayPercentage={Math.round(userGlobalStreaks.todayPercentage || 0)}
+        last7Days={userGlobalStreaks.last7Days || []}
       />
 
       <header className="mb-6 md:mb-10">

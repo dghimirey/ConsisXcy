@@ -214,12 +214,21 @@ export function calculateGlobalStreaks(
   // Actually, even if they explicitly missed, they have till midnight to change it.
   const isAtRisk = !todayCompleted && todayResult.totalTasks > 0;
 
+  // Calculate last 7 days history
+  const last7Days: boolean[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const dStr = dayjs().subtract(i, 'day').format('YYYY-MM-DD');
+    const result = getDayCompletionStatus(dStr, routines, categories, completions);
+    last7Days.push(result.status === 'ALL');
+  }
+
   return { 
     current: currentStreak + (todayCompleted ? 1 : 0), 
     longest: Math.max(longestStreak, currentStreak + (todayCompleted ? 1 : 0)), 
     isAtRisk, 
     todayCompleted,
-    todayPercentage: todayResult.percentage
+    todayPercentage: todayResult.percentage,
+    last7Days
   };
 }
 
