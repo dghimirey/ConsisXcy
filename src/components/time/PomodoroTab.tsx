@@ -4,8 +4,10 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, FastForward, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SoundService } from '../../services/SoundService';
-import confetti from 'canvas-confetti';
+import confettiModule from 'canvas-confetti';
 import toast from 'react-hot-toast';
+
+const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
 
 function formatTime(ms: number) {
   const totalSeconds = Math.ceil(ms / 1000);

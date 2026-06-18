@@ -46,7 +46,7 @@ export const fetchCompletions = async (): Promise<Completion[]> => {
   return res.json();
 };
 
-export const toggleCompletion = async (data: { routineId: string; date: string; status: 'COMPLETED' | 'PARTIAL' | 'MISSED'; value?: number; targetValue: number }): Promise<Completion> => {
+export const toggleCompletion = async (data: { routineId: string; date: string; status: 'COMPLETED' | 'PARTIAL' | 'MISSED' | 'FREEZED'; value?: number; targetValue: number }): Promise<Completion> => {
   const res = await fetch('/api/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -204,6 +204,19 @@ export const toggleRestrictedCompletion = async (data: { taskId: string; date: s
     body: JSON.stringify(data)
   });
   if (!res.ok) throw new Error('Failed to toggle restricted completion');
+  return res.json();
+};
+
+export const applyStreakFreeze = async (date: string): Promise<any> => {
+  const res = await fetch('/api/apply-freeze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to apply streak freeze');
+  }
   return res.json();
 };
 

@@ -1,7 +1,10 @@
-import confetti from 'canvas-confetti';
+import confettiModule from 'canvas-confetti';
 import { SoundService } from '../services/SoundService';
 
+const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
+
 type CelebrationType = 'DAY_COMPLETED' | 'PERFECT_WEEK' | 'MILESTONE' | 'PERSONAL_BEST';
+
 
 type CelebrationEvent = {
     type: CelebrationType;

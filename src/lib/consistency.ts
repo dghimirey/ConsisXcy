@@ -44,7 +44,7 @@ export function getDayCompletionStatus(
     return dateStr <= lastRecordDate;
   });
 
-  const totalTasks = expectedRoutines.length;
+  let totalTasks = expectedRoutines.length;
 
   if (totalTasks === 0) return { status: 'NONE', percentage: 0, totalTasks: 0, completedTasks: 0 };
 
@@ -56,11 +56,14 @@ export function getDayCompletionStatus(
 
   let completedTasks = 0;
   let explicitlyMissed = 0;
+  let freezedTasks = 0;
 
   expectedRoutines.forEach(routine => {
     const status = filteredCompletions.find(c => c.routineId === routine.id)?.status;
     if (status === 'COMPLETED') {
       completedTasks++;
+    } else if (status === 'FREEZED') {
+      freezedTasks++;
     } else if (status === 'MISSED') {
       explicitlyMissed++;
     } else if (!isDayEnded && routine.deadline) {
@@ -76,6 +79,8 @@ export function getDayCompletionStatus(
 
   if (completedTasks === totalTasks && totalTasks > 0) {
     return { status: 'ALL', percentage, totalTasks, completedTasks };
+  } else if (completedTasks + freezedTasks === totalTasks && totalTasks > 0) {
+    return { status: 'FREEZED', percentage, totalTasks, completedTasks };
   } else if (isDayEnded) {
     // If day is over and not ALL, it's MISSED
     return { status: 'MISSED', percentage, totalTasks, completedTasks };
@@ -142,6 +147,8 @@ export function calculateRoutineStreak(
 
        if (status === 'COMPLETED') {
          currentStreak++;
+       } else if (status === 'FREEZED') {
+         // Freeze protects the streak from breaking but doesn't increment
        } else if (status === 'MISSED' || (!routine.isActive && !isToday && currDate.isBefore(limitDate.subtract(1, 'day'))) || (routine.isActive && !isToday && currDate.isBefore(limitDate))) {
          // Missed a scheduled day in the past, or missed today (if explicitly marked/expired)
          if (status === 'MISSED' || (!isToday && !status)) {
@@ -222,13 +229,19 @@ export function calculateGlobalStreaks(
     last7Days.push(result.status === 'ALL');
   }
 
+  // Check if yesterday was explicitly missed
+  const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+  const yesterdayResult = getDayCompletionStatus(yesterdayStr, routines, categories, completions);
+  const wasYesterdayMissed = yesterdayResult.status === 'MISSED' || yesterdayResult.status === 'SOME';
+
   return { 
     current: currentStreak + (todayCompleted ? 1 : 0), 
     longest: Math.max(longestStreak, currentStreak + (todayCompleted ? 1 : 0)), 
     isAtRisk, 
     todayCompleted,
     todayPercentage: todayResult.percentage,
-    last7Days
+    last7Days,
+    wasYesterdayMissed
   };
 }
 

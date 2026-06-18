@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
-import { Check, Focus } from 'lucide-react';
+import { Check, Focus, Snowflake, ShieldAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections, fetchRestrictedTasks, fetchRestrictedCompletions, toggleRestrictedCompletion } from '../services/api';
+import { fetchRoutines, fetchCompletions, toggleCompletion, fetchStreaks, fetchCategories, fetchSections, fetchRestrictedTasks, fetchRestrictedCompletions, toggleRestrictedCompletion, checkAuth, applyStreakFreeze } from '../services/api';
 import { Routine, Completion, Category, Section, RestrictedTask, RestrictedCompletion } from '../types';
 import { StreakCounter } from '../components/StreakCounter';
 import { RestrictedTasksList } from '../components/RestrictedTasksList';
@@ -27,6 +27,8 @@ export default function Dashboard() {
     const { data: streaks = [] } = useQuery({ queryKey: ['streaks'], queryFn: fetchStreaks });
     const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
     const { data: sectionsData = [] } = useQuery({ queryKey: ['sections'], queryFn: fetchSections });
+    const { data: authData } = useQuery({ queryKey: ['auth'], queryFn: checkAuth });
+    const user = authData?.user;
 
     const { data: restrictedTasks = [] } = useQuery({ queryKey: ['restrictedTasks'], queryFn: fetchRestrictedTasks });
     const { data: restrictedCompletions = [] } = useQuery({ queryKey: ['restrictedCompletions'], queryFn: fetchRestrictedCompletions });
@@ -185,6 +187,15 @@ export default function Dashboard() {
     return calculateGlobalStreaks(routines, categoriesData, completions);
   }, [routines, categoriesData, completions]);
 
+  const freezeMutation = useMutation({
+    mutationFn: applyStreakFreeze,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['completions'] });
+      queryClient.invalidateQueries({ queryKey: ['auth'] });
+      SoundService.playStreakMaintained(); // Optional feedback
+    }
+  });
+
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       {/* Global Streaks Section */}
@@ -196,6 +207,38 @@ export default function Dashboard() {
         todayPercentage={Math.round(userGlobalStreaks.todayPercentage || 0)}
         last7Days={userGlobalStreaks.last7Days || []}
       />
+
+      {userGlobalStreaks.wasYesterdayMissed && userGlobalStreaks.longest >= 30 && user && (user.streakFreezes ?? 0) > 0 && (
+        <motion.div 
+           initial={{ opacity: 0, y: -20 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="mb-8 p-4 md:p-5 rounded-[20px] border border-sky-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4"
+           style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.05) 100%)' }}
+        >
+          <div className="flex items-start md:items-center gap-3 md:gap-4">
+             <div className="p-2 md:p-3 bg-sky-500/20 rounded-xl shrink-0">
+                <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-sky-400" />
+             </div>
+             <div>
+                <h3 className="text-white font-bold text-sm md:text-base">Streak Alert: Yesterday Missed</h3>
+                <p className="text-sky-200/70 text-xs md:text-sm mt-0.5 md:mt-1">
+                   You have <span className="text-sky-400 font-bold">{user.streakFreezes}</span> Streak Freeze{user.streakFreezes !== 1 && 's'} available to save your streak!
+                </p>
+             </div>
+          </div>
+          <button 
+             onClick={() => {
+                const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+                freezeMutation.mutate(yesterday);
+             }}
+             disabled={freezeMutation.isPending}
+             className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)] flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+             <Snowflake className="w-4 h-4" />
+             {freezeMutation.isPending ? 'Freezing...' : 'Use Freeze'}
+          </button>
+        </motion.div>
+      )}
 
       <header className="mb-6 md:mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

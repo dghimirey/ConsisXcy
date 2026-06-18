@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Flame, CheckCircle2, AlertTriangle, Trophy } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import confettiModule from 'canvas-confetti';
 import dayjs from 'dayjs';
+
+const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
 
 function AnimatedFlame({ streak, active }: { streak: number, active: boolean }) {
   // Day 1-3 (Small), 4-7 (Medium), 8-14 (Strong), 15-30 (Large), 31-100+ (Legendary)

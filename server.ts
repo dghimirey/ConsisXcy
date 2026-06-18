@@ -96,7 +96,7 @@ app.post('/api/auth/login', async (req: express.Request, res: express.Response) 
     if (user && validPassword) {
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 7 * 24 * 60 * 60 * 1000 });
-      res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl } });
+      res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl, points: user.points, streakFreezes: user.streakFreezes } });
     } else {
       res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -115,7 +115,7 @@ app.get('/api/auth/me', authenticate, async (req: express.Request, res: express.
   try {
     const sql = getSql();
     const email = (req as any).user.email;
-    const users = await sql`SELECT id, name, email, "avatarUrl" FROM "AppUser" WHERE email = ${email}`;
+    const users = await sql`SELECT id, name, email, "avatarUrl", points, "streakFreezes" FROM "AppUser" WHERE email = ${email}`;
     if (users.length > 0) {
       res.json({ user: users[0] });
     } else {
@@ -283,6 +283,16 @@ app.post('/api/completions', authenticate, async (req: express.Request, res: exp
     const { routineId, date, status, value, targetValue } = req.body;
     const parsedDate = new Date(date).toISOString(); // Handle proper Postgres dates
     const completionId = crypto.randomUUID();
+    const userId = (req as any).user.id;
+
+    if (status === 'FREEZED') {
+      const userRes = await sql`SELECT "streakFreezes" FROM "AppUser" WHERE id = ${userId}`;
+      if (!userRes[0] || userRes[0].streakFreezes <= 0) {
+        res.status(400).json({ error: 'No streak freezes available' });
+        return;
+      }
+      await sql`UPDATE "AppUser" SET "streakFreezes" = "streakFreezes" - 1 WHERE id = ${userId}`;
+    }
     
     // upsert completion using ON CONFLICT DO UPDATE
     const completions = await sql`
@@ -510,6 +520,64 @@ app.post('/api/restricted-completions', authenticate, async (req: express.Reques
       RETURNING *
     `;
     res.json(completions[0]);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/apply-freeze', authenticate, async (req: express.Request, res: express.Response) => {
+  try {
+    const sql = getSql();
+    const userId = (req as any).user.id;
+    const { date } = req.body;
+    
+    if (!date) {
+      res.status(400).json({ error: 'Date is required' });
+      return;
+    }
+
+    const parsedDate = new Date(date).toISOString().split('T')[0];
+
+    // Check if user has streak freezes
+    const users = await sql`SELECT "streakFreezes" FROM "AppUser" WHERE id = ${userId}`;
+    if (users.length === 0 || users[0].streakFreezes <= 0) {
+      res.status(400).json({ error: 'No streak freezes available' });
+      return;
+    }
+
+    // Get all routines that were active at this date (simplification: we just fetch all routines)
+    const routines = await sql`SELECT r.*, c.schedule FROM "Routine" r JOIN "Category" c ON r."categoryId" = c.id WHERE r."isActive" = true`;
+    const targetDayIndex = new Date(parsedDate).getDay();
+    
+    // Find scheduled routines
+    const scheduledRoutines = routines.filter(r => r.schedule.includes(targetDayIndex));
+    
+    // Find completions for that date
+    const completions = await sql`SELECT * FROM "Completion" WHERE date::date = ${parsedDate}::date`;
+    
+    let freezeApplied = false;
+    
+    for (const r of scheduledRoutines) {
+      const comp = completions.find(c => c.routineId === r.id);
+      if (!comp || comp.status === 'MISSED' || comp.status === 'PARTIAL') {
+         // Apply freeze
+         const completionId = crypto.randomUUID();
+         await sql`
+           INSERT INTO "Completion" (id, "routineId", date, status, value, "targetValue", "createdAt", "updatedAt")
+           VALUES (${completionId}, ${r.id}, ${parsedDate}::timestamp, 'FREEZED', 0, ${r.targetValue}, NOW(), NOW())
+           ON CONFLICT ("routineId", date)
+           DO UPDATE SET status = 'FREEZED', "updatedAt" = NOW()
+         `;
+         freezeApplied = true;
+      }
+    }
+
+    if (freezeApplied) {
+       await sql`UPDATE "AppUser" SET "streakFreezes" = "streakFreezes" - 1 WHERE id = ${userId}`;
+       res.json({ success: true, message: 'Streak freeze applied' });
+    } else {
+       res.status(400).json({ error: 'No missed routines to freeze on this day' });
+    }
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

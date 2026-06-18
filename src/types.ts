@@ -36,7 +36,7 @@ export interface Completion {
   id: string;
   routineId: string;
   date: string;
-  status: 'COMPLETED' | 'PARTIAL' | 'MISSED';
+  status: 'COMPLETED' | 'PARTIAL' | 'MISSED' | 'FREEZED';
   value: number | null;
   targetValue: number;
   createdAt: string;
@@ -58,6 +58,8 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
+  points?: number;
+  streakFreezes?: number;
 }
 
 export interface Section {
