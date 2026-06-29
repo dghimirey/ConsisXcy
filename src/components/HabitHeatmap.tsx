@@ -132,6 +132,19 @@ export function HabitHeatmap({ section = 'All' }: { section?: string }) {
            );
          })}
       </div>
+      <div className="mt-5 flex items-center justify-end gap-2 text-[10px] text-app-text-s font-mono opacity-80">
+        <span>Less</span>
+        <div className="flex gap-1 lg:gap-1.5">
+          <div className="w-3 h-3 rounded-[2px] bg-[#1a1a1a] border border-[#2a2a2a] shrink-0" title="No tasks" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#EF4444] shrink-0" title="0% (Missed)" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#FBBF24] shrink-0" title="1-25%" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#F59E0B] shrink-0" title="26-50%" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#FB923C] shrink-0" title="51-75%" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#4ADE80] shrink-0" title="76-99%" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#16A34A] shrink-0" title="100%" />
+        </div>
+        <span>More</span>
+      </div>
     </div>
   );
 }

@@ -115,6 +115,16 @@ export function RestrictedHabitHeatmap() {
            );
          })}
       </div>
+      <div className="mt-5 flex items-center justify-end gap-2 text-[10px] text-app-text-s font-mono opacity-80">
+        <span>Less</span>
+        <div className="flex gap-1 lg:gap-1.5">
+          <div className="w-3 h-3 rounded-[2px] bg-[#1a1a1a] border border-[#2a2a2a] shrink-0" title="No tasks" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#EF4444] shrink-0" title="Failed" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#FBBF24] shrink-0" title="Partially Avoided" />
+          <div className="w-3 h-3 rounded-[2px] bg-[#16A34A] shrink-0" title="Successfully Avoided All" />
+        </div>
+        <span>More</span>
+      </div>
     </div>
   );
 }

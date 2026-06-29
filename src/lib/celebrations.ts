@@ -1,7 +1,26 @@
 import confettiModule from 'canvas-confetti';
 import { SoundService } from '../services/SoundService';
 
-const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
+const defaultConfetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
+
+export const fireConfetti = (options: any) => {
+    let canvas = document.getElementById('custom-confetti-canvas') as HTMLCanvasElement;
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'custom-confetti-canvas';
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '2147483647';
+        document.body.appendChild(canvas);
+    }
+    
+    const myConfetti = (defaultConfetti as any).create(canvas, { resize: true, useWorker: true });
+    myConfetti(options);
+};
 
 type CelebrationType = 'DAY_COMPLETED' | 'PERFECT_WEEK' | 'MILESTONE' | 'PERSONAL_BEST';
 
@@ -38,13 +57,12 @@ export const triggerRoutineCompletion = (el?: HTMLElement) => {
      };
   }
 
-  confetti({
+  fireConfetti({
     particleCount: 50,
     spread: 60,
     origin,
     colors: ['#22C55E', '#84CC16', '#EAB308', '#FFFFFF'], // Emerald, Lime, Gold, White
-    disableForReducedMotion: true,
-    zIndex: 100,
+    zIndex: 2147483647,
     gravity: 1.2,
     scalar: 0.8,
     ticks: 150
@@ -60,21 +78,21 @@ export const triggerDailyCompletion = () => {
     const end = Date.now() + duration;
 
     const frame = () => {
-        confetti({
+        fireConfetti({
             particleCount: 5,
             angle: 60,
             spread: 55,
             origin: { x: 0, y: 0.8 },
             colors: ['#22C55E', '#16A34A', '#FDE047', '#FFFFFF'],
-            zIndex: 1000
+            zIndex: 2147483647
         });
-        confetti({
+        fireConfetti({
             particleCount: 5,
             angle: 120,
             spread: 55,
             origin: { x: 1, y: 0.8 },
             colors: ['#22C55E', '#16A34A', '#FDE047', '#FFFFFF'],
-            zIndex: 1000
+            zIndex: 2147483647
         });
 
         if (Date.now() < end) {
@@ -92,21 +110,21 @@ export const triggerPerfectWeek = () => {
     const end = Date.now() + duration;
 
     const frame = () => {
-        confetti({
+        fireConfetti({
             particleCount: 8,
             angle: 60,
             spread: 55,
             origin: { x: 0, y: 0.8 },
             colors: ['#FDE047', '#EAB308', '#CA8A04', '#FFFFFF'],
-            zIndex: 1000
+            zIndex: 2147483647
         });
-        confetti({
+        fireConfetti({
             particleCount: 8,
             angle: 120,
             spread: 55,
             origin: { x: 1, y: 0.8 },
             colors: ['#FDE047', '#EAB308', '#CA8A04', '#FFFFFF'],
-            zIndex: 1000
+            zIndex: 2147483647
         });
 
         if (Date.now() < end) {
@@ -125,12 +143,12 @@ export const triggerMilestone = (streak: number) => {
     
     SoundService.playConfetti();
     
-    confetti({
+    fireConfetti({
         particleCount: 150,
         spread: 100,
         origin: { y: 0.6 },
         colors: ['#22C55E', '#EAB308', '#EC4899', '#3B82F6', '#FFFFFF'],
-        zIndex: 1000,
+        zIndex: 2147483647,
         gravity: 0.8,
         scalar: 1.2,
     });
@@ -147,12 +165,12 @@ export const triggerPersonalBest = () => {
     SoundService.playPersonalBest();
     SoundService.playConfetti();
     
-    confetti({
+    fireConfetti({
         particleCount: 200,
         spread: 120,
         origin: { y: 0.6 },
         colors: ['#FDE047', '#EAB308', '#CA8A04', '#FEF08A'],
-        zIndex: 1000,
+        zIndex: 2147483647,
         gravity: 1,
         scalar: 1.1,
     });

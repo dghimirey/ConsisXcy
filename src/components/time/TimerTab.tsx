@@ -4,10 +4,8 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, Plus, Minus, BellRing, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SoundService } from '../../services/SoundService';
-import confettiModule from 'canvas-confetti';
+import { fireConfetti } from '../../lib/celebrations';
 import toast from 'react-hot-toast';
-
-const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
 
 function formatTime(ms: number) {
   const totalSeconds = Math.ceil(ms / 1000); // ceil so it shows 1 when 0.1s left
@@ -54,12 +52,12 @@ export function TimerTab() {
          if (soundEnabled) {
             SoundService.playTimerComplete();
             setTimeout(() => SoundService.playConfetti(), 100);
-            confetti({
+            fireConfetti({
                particleCount: 80,
                spread: 70,
                origin: { y: 0.6 },
                colors: ['#34D399', '#10B981', '#FFFFFF'],
-               zIndex: 1000
+               zIndex: 2147483647
             });
             toast('Focus Session Complete! Great Work.', {
                icon: '👏',

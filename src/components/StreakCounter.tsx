@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Flame, CheckCircle2, AlertTriangle, Trophy } from 'lucide-react';
-import confettiModule from 'canvas-confetti';
+import { fireConfetti } from '../lib/celebrations';
 import dayjs from 'dayjs';
-
-const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
 
 function AnimatedFlame({ streak, active }: { streak: number, active: boolean }) {
   // Day 1-3 (Small), 4-7 (Medium), 8-14 (Strong), 15-30 (Large), 31-100+ (Legendary)
@@ -183,11 +181,12 @@ export function StreakCounter({ currentStreak, longestStreak, isAtRisk, todayCom
   useEffect(() => {
     if (currentStreak > prevStreak) {
        // Streak increased!
-       confetti({
+       fireConfetti({
          particleCount: 50,
          spread: 60,
          origin: { y: 0.6 },
-         colors: ['#ff6a00', '#ff8a00', '#ffd166']
+         colors: ['#ff6a00', '#ff8a00', '#ffd166'],
+         zIndex: 2147483647
        });
     }
     setPrevStreak(currentStreak);

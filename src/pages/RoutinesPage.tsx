@@ -130,7 +130,7 @@ export default function RoutinesPage() {
 
             <AnimatePresence>
               {expandedSections[section.id] && (
-                <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                <motion.div initial={{ height: 0, overflow: 'hidden' }} animate={{ height: 'auto', transitionEnd: { overflow: 'visible' } }} exit={{ height: 0, overflow: 'hidden' }}>
                   <div className="p-4 md:p-6 pt-2 pb-6 space-y-4 bg-app-bg/30">
                     {section.categories.map((category: any) => (
                       <div key={category.id} className="bg-app-bg border border-app-border/60 rounded-2xl ml-0 md:ml-4 overflow-hidden">
@@ -152,7 +152,7 @@ export default function RoutinesPage() {
                             <button onClick={(e) => { e.stopPropagation(); setEditingCategory(category); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-white rounded-lg hover:bg-app-glass transition-colors">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteCategoryMutation.mutate(category.id); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
+                            <button onClick={(e) => { e.stopPropagation(); setItemToDelete({id: category.id, type: 'Category'}); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-app-text-s hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -160,7 +160,7 @@ export default function RoutinesPage() {
 
                         <AnimatePresence>
                           {expandedCategories[category.id] && (
-                            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                            <motion.div initial={{ height: 0, overflow: 'hidden' }} animate={{ height: 'auto', transitionEnd: { overflow: 'visible' } }} exit={{ height: 0, overflow: 'hidden' }}>
                               <div className="p-2.5 md:p-4 bg-app-surface/20 space-y-2.5 md:space-y-3 border-t border-app-border/40 pl-3 md:pl-10">
                                 {category.routines.map((routine: Routine) => (
                                   <RoutineItem key={routine.id} routine={routine} onEdit={setEditingRoutine} onDelete={(r) => setItemToDelete({id: r.id, type: 'Routine'})} />

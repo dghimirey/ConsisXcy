@@ -16,6 +16,39 @@ export default function Layout() {
     if (isError) navigate('/login');
   }, [isError, navigate]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input, textarea, or contenteditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Ignore if modifiers are pressed (like Ctrl+C)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        navigate('/');
+      } else if (key === 'r') {
+        navigate('/routines');
+      } else if (key === 'a') {
+        navigate('/analytics');
+      } else if (key === 't') {
+        navigate('/time');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   if (!data && !error) return null; // Simple loader or white screen while checking
 
   const handleLogout = async () => {
@@ -40,21 +73,33 @@ export default function Layout() {
             <h1 className={`font-display text-2xl font-bold tracking-tight text-white transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>ConsisXcy</h1>
         </div>
         <nav className={`flex flex-col gap-2 w-full px-4`}>
-          <NavLink to="/" end className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Dashboard">
-            <LayoutDashboard className="w-5 h-5 shrink-0" />
-            {!isCollapsed && <span>Dashboard</span>}
+          <NavLink to="/" end className={({ isActive }) => `flex items-center justify-between ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Dashboard (C)">
+            <div className="flex items-center gap-3">
+              <LayoutDashboard className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Dashboard</span>}
+            </div>
+            {!isCollapsed && <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-app-border text-app-text-s bg-app-bg opacity-60">C</kbd>}
           </NavLink>
-          <NavLink to="/routines" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Routines">
-            <ListTodo className="w-5 h-5 shrink-0" />
-            {!isCollapsed && <span>Routines</span>}
+          <NavLink to="/routines" className={({ isActive }) => `flex items-center justify-between ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Routines (R)">
+            <div className="flex items-center gap-3">
+              <ListTodo className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Routines</span>}
+            </div>
+            {!isCollapsed && <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-app-border text-app-text-s bg-app-bg opacity-60">R</kbd>}
           </NavLink>
-          <NavLink to="/time" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive || location.pathname.startsWith('/time') ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Time">
-            <TimerIcon className="w-5 h-5 shrink-0" />
-            {!isCollapsed && <span>Time</span>}
+          <NavLink to="/time" className={({ isActive }) => `flex items-center justify-between ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive || location.pathname.startsWith('/time') ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Time (T)">
+            <div className="flex items-center gap-3">
+              <TimerIcon className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Time</span>}
+            </div>
+            {!isCollapsed && <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-app-border text-app-text-s bg-app-bg opacity-60">T</kbd>}
           </NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Analytics">
-            <Activity className="w-5 h-5 shrink-0" />
-            {!isCollapsed && <span>Analytics</span>}
+          <NavLink to="/analytics" className={({ isActive }) => `flex items-center justify-between ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} w-full py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-app-accent/10 text-app-accent font-medium' : 'text-app-text-s hover:text-app-text-p hover:bg-app-glass'}`} title="Analytics (A)">
+            <div className="flex items-center gap-3">
+              <Activity className="w-5 h-5 shrink-0" />
+              {!isCollapsed && <span>Analytics</span>}
+            </div>
+            {!isCollapsed && <kbd className="hidden lg:inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border border-app-border text-app-text-s bg-app-bg opacity-60">A</kbd>}
           </NavLink>
 
         </nav>

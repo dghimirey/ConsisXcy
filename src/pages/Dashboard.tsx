@@ -9,10 +9,12 @@ import { StreakCounter } from '../components/StreakCounter';
 import { RestrictedTasksList } from '../components/RestrictedTasksList';
 import { getIcon } from '../lib/icons';
 import { calculateGlobalStreaks, calculateRoutineStreak, getMilestone, getDayCompletionStatus } from '../lib/consistency';
+import { formatTarget } from '../lib/utils';
 import { triggerRoutineCompletion, triggerDailyCompletion, triggerMilestone, triggerPerfectWeek, triggerPersonalBest } from '../lib/celebrations';
 import { SoundService } from '../services/SoundService';
 import { FocusSessionOverlay } from '../components/shared/FocusSessionOverlay';
 import dayjs from 'dayjs';
+import toast from 'react-hot-toast';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -81,10 +83,32 @@ export default function Dashboard() {
 
   const activeSections = Object.values(routinesBySection).filter((s: any) => s.routines.length > 0);
 
-  const handleCompletion = (el: HTMLElement | null, routineId: string, newStatus: string) => {
+  const handleCompletion = (el: HTMLElement | null, routineId: string, newStatus: string, totalTarget: number) => {
     if (newStatus !== 'COMPLETED') return;
 
     if (el) triggerRoutineCompletion(el);
+
+    toast((t) => (
+        <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Routine marked complete</span>
+            <button 
+                onClick={() => {
+                    mutation.mutate({ routineId, date: todayStr, status: 'MISSED', targetValue: totalTarget, value: 0 });
+                    toast.dismiss(t.id);
+                }}
+                className="px-2 py-1 text-xs font-semibold bg-white/10 hover:bg-white/20 rounded transition-colors"
+            >
+                Undo
+            </button>
+        </div>
+    ), { 
+        duration: 5000,
+        style: {
+            background: '#27272A',
+            color: '#fff',
+            border: '1px solid #3F3F46'
+        }
+    });
 
     // Predict if day will be completed
     const currentDayStatus = getDayCompletionStatus(todayStr, routines, categoriesData, completions, 'All');
@@ -248,6 +272,18 @@ export default function Dashboard() {
             </h1>
             <p className="text-app-text-s font-mono text-xs md:text-sm uppercase tracking-wider">{format(new Date(), 'EEE, MMM d, yyyy')}</p>
           </div>
+          <div>
+            <button 
+              onClick={(e) => {
+                 import('../lib/celebrations').then(m => {
+                    m.triggerDailyCompletion();
+                 });
+              }}
+              className="px-3 py-1.5 text-xs font-mono uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-colors"
+            >
+              Test Confetti
+            </button>
+          </div>
         </div>
         {todaySections.length > 0 && (
           <div className="mt-6 flex flex-wrap gap-2">
@@ -325,7 +361,7 @@ export default function Dashboard() {
                                  
                                  mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                  if (newStatus === 'COMPLETED' && !isCompleted) {
-                                     handleCompletion(e.currentTarget, routine.id, newStatus);
+                                     handleCompletion(e.currentTarget, routine.id, newStatus, totalTarget);
                                  } else if (newStatus === 'MISSED' && isCompleted) {
                                      SoundService.playNegativeFeedback();
                                  }
@@ -342,7 +378,7 @@ export default function Dashboard() {
                                     mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                     
                                     if (newStatus === 'COMPLETED' && !isCompleted) {
-                                        handleCompletion(e.currentTarget, routine.id, newStatus);
+                                        handleCompletion(e.currentTarget, routine.id, newStatus, totalTarget);
                                     } else if (newStatus === 'MISSED' && isCompleted) {
                                         SoundService.playNegativeFeedback();
                                     }
@@ -377,7 +413,7 @@ export default function Dashboard() {
                                                 className="text-[9px] md:text-[10px] font-mono px-1.5 md:px-2 py-0.5 rounded-md bg-app-surface/40 border border-app-border/60 text-app-text-s tracking-wide uppercase flex items-center gap-1 cursor-pointer hover:bg-app-surface hover:text-white transition-colors"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  const input = prompt(`Enter progress for ${routine.name} (Target: ${totalTarget} ${routine.targetUnit}):`, currentVal.toString());
+                                                  const input = prompt(`Enter progress for ${routine.name} (Target: ${formatTarget(totalTarget)} ${routine.targetUnit}):`, formatTarget(currentVal).toString());
                                                   if (input !== null) {
                                                       const parsed = parseFloat(input);
                                                       if (!isNaN(parsed) && parsed >= 0) {
@@ -385,7 +421,7 @@ export default function Dashboard() {
                                                           const newStatus = newVal >= totalTarget ? 'COMPLETED' : (newVal > 0 ? 'PARTIAL' : 'MISSED');
                                                           mutation.mutate({ routineId: routine.id, date: todayStr, status: newStatus, targetValue: totalTarget, value: newVal });
                                                           if (newStatus === 'COMPLETED' && !isCompleted) {
-                                                              handleCompletion(e.currentTarget, routine.id, newStatus);
+                                                              handleCompletion(e.currentTarget, routine.id, newStatus, totalTarget);
                                                           }
                                                       }
                                                   }
@@ -394,8 +430,8 @@ export default function Dashboard() {
                                                 <span className="opacity-60">Goal:</span>
                                                 <span className={isCompleted ? 'text-emerald-400' : (isExpired ? 'text-rose-400' : 'text-gray-300')}>
                                                   {sets > 1 
-                                                     ? (showSetsProgress ? `${setsCompleted} / ${sets}` : `${sets} × ${routine.targetValue}`)
-                                                     : (routine.targetValue > 1 ? `${currentVal}/${routine.targetValue}` : routine.targetValue)}
+                                                     ? (showSetsProgress ? `${setsCompleted} / ${sets}` : `${sets} × ${formatTarget(routine.targetValue)}`)
+                                                     : (routine.targetValue > 1 ? `${formatTarget(currentVal)}/${formatTarget(routine.targetValue)}` : formatTarget(routine.targetValue))}
                                                 </span>
                                                 <span className="opacity-60 lowercase">
                                                   {sets > 1 && showSetsProgress ? 'sets completed' : routine.targetUnit}
@@ -546,7 +582,7 @@ export default function Dashboard() {
              const totalTarget = (r.sets || 1) * r.targetValue;
              mutation.mutate({ routineId: r.id, date: todayStr, status: 'COMPLETED', targetValue: totalTarget, value: totalTarget });
              if (getDayStatus(routineId) !== 'COMPLETED') {
-                 handleCompletion(null, routineId, 'COMPLETED');
+                 handleCompletion(null, routineId, 'COMPLETED', totalTarget);
              }
            }
         }}

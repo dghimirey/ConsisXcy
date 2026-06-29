@@ -12,8 +12,7 @@ export default defineConfig(() => {
       },
     },
     server: {
-      hmr: process.env.DISABLE_HMR === 'true' ? false : { clientPort: 443 },
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      hmr: false,
     },
   };
 });

@@ -4,10 +4,8 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 import { Play, Pause, RotateCcw, FastForward, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SoundService } from '../../services/SoundService';
-import confettiModule from 'canvas-confetti';
+import { fireConfetti } from '../../lib/celebrations';
 import toast from 'react-hot-toast';
-
-const confetti = typeof confettiModule === 'function' ? confettiModule : (confettiModule as any).default || confettiModule;
 
 function formatTime(ms: number) {
   const totalSeconds = Math.ceil(ms / 1000);
@@ -55,12 +53,12 @@ export function PomodoroTab() {
           if (phase === 'focus') {
              SoundService.playPomodoroWorkComplete();
              setTimeout(() => SoundService.playConfetti(), 100);
-             confetti({
+             fireConfetti({
                 particleCount: 50,
                 spread: 60,
                 origin: { y: 0.6 },
                 colors: ['#34D399', '#FFFFFF'],
-                zIndex: 1000
+                zIndex: 2147483647
              });
              toast('Focus Session Complete', { icon: '🎯', style: { borderRadius: '12px', background: '#27272A', color: '#fff' } });
           } else {

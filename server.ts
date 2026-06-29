@@ -308,7 +308,7 @@ app.post('/api/completions', authenticate, async (req: express.Request, res: exp
         const routineResult = await sql`SELECT * FROM "Routine" WHERE id = ${routineId}`;
         const routine = routineResult[0];
         
-        if (routine?.autoImprovement) {
+        if (routine?.autoImprovement && routine?.isActive !== false) {
             await sql`UPDATE "Routine" SET "targetValue" = ROUND(("targetValue" * 1.01)::numeric, 2) WHERE id = ${routineId}`;
         }
         
